@@ -67,13 +67,89 @@ body {
 .sidebar {
     background-color: var(--color-bg-panel);
     border-right: 1px solid var(--color-border);
-    padding: 24px;
+    padding: 24px 12px 12px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    /* Gap handled by Scroll */
+    overflow: hidden;
+    /* Main sidebar doesn't scroll, inner does */
+    z-index: 10;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.02);
+}
+
+.sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 12px;
     display: flex;
     flex-direction: column;
     gap: 20px;
-    overflow-y: auto;
-    z-index: 10;
-    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.02);
+    min-height: 100px;
+    /* Prevent total collapse */
+}
+
+/* Resizer */
+.sidebar-resizer {
+    height: 8px;
+    background: transparent;
+    cursor: ns-resize;
+    flex-shrink: 0;
+    position: relative;
+    margin: 0 -24px;
+    /* Extend full width */
+    z-index: 20;
+}
+
+.sidebar-resizer::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 3px;
+    width: 40px;
+    height: 2px;
+    background: var(--color-border);
+    transform: translateX(-50%);
+    border-radius: 2px;
+}
+
+.sidebar-resizer:hover::after {
+    background: var(--color-accent);
+}
+
+/* JSON Fixed Panel */
+.json-fixed-panel {
+    flex-shrink: 0;
+    height: 250px;
+    /* Default height */
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg-panel);
+    border-top: 1px solid var(--color-border);
+    margin: 0 -12px -12px -24px;
+    /* Negative margin to fill bottom */
+    padding: 4px 29.5px 12px 24px;
+    transition: height 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.json-fixed-panel.collapsed {
+    height: 48px !important;
+    /* Only header visible */
+    overflow: hidden;
+}
+
+.json-fixed-panel.resizing {
+    transition: none;
+    /* Disable transition during drag */
+}
+
+#json-editor {
+    flex: 1;
+    /* Fill remaining space in panel */
+    height: 100%;
+    /* Force fill */
+    resize: none !important;
+    /* Disable native resize */
 }
 
 header h1 {
@@ -194,8 +270,30 @@ select:focus {
     background: #fff;
 }
 
+/* Inputs Sizing */
+.input-num {
+    width: 70px;
+    text-align: center;
+}
+
+.input-sm {
+    width: 50px !important;
+}
+
+.input-md {
+    width: 80px !important;
+}
+
+.input-lg {
+    width: 100px !important;
+}
+
+.input-full {
+    width: 100% !important;
+}
+
 input[type="number"] {
-    width: 60px;
+    width: 80px;
     text-align: center;
 }
 
@@ -244,8 +342,9 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 /* Buttons */
 button {
-    background-color: var(--color-bg);
-    border: 1px solid var(--color-border);
+    background: #f0f0f0;
+    /* Default btn background */
+    border: 1px solid transparent;
     color: var(--color-text-main);
     padding: 8px 12px;
     border-radius: 6px;
@@ -408,6 +507,12 @@ input:checked+.slider:before {
     background: white;
     border-radius: 12px;
     border: 1px solid var(--color-border);
+    /* "Smaller" display for auto mode */
+    width: 100%;
+    max-width: 800px;
+    max-height: 80vh;
+    margin: auto;
+    /* Center it */
 }
 
 /* JSON Editor */

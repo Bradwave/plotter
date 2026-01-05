@@ -7,8 +7,8 @@ const DEFAULT_STATE = {
     // Auto size (fill container)
     width: null, 
     height: null,
-    xlim: [-10, 10],
-    ylim: [-10, 10],
+    xlim: [-9.9, 9.9],
+    ylim: [-9.9, 9.9],
     aspectRatio: "1:1",
     theme: "red",
     border: true,
@@ -47,7 +47,74 @@ function init() {
     bindGlobalEvents();
     syncUIToState();
     setupCollapsibles();
+    initSidebarResizer();
     updatePlot(); // Ensure plot is visible on reload
+}
+
+// ... existing loadState ...
+
+function initSidebarResizer() {
+    const resizer = document.getElementById("json-resizer");
+    const panel = document.getElementById("json-section-wrapper");
+    const header = document.getElementById("json-collapse-header");
+    const icon = document.getElementById("json-collapse-icon");
+    
+    let isResizing = false;
+    let lastDownY = 0;
+    let startHeight = 0;
+
+    // Toggle Collapse
+    header.addEventListener("click", () => {
+        if (isResizing) return;
+        const isCollapsed = panel.classList.toggle("collapsed");
+        icon.innerText = isCollapsed ? "expand_less" : "expand_more"; // Swapped logic standard
+        
+        // If expanding, ensure we have a decent height if it was crushed
+        if (!isCollapsed && panel.getBoundingClientRect().height < 100) {
+           panel.style.height = "250px";
+        }
+    });
+
+    // Resize Logic
+    resizer.addEventListener("mousedown", (e) => {
+        isResizing = true;
+        lastDownY = e.clientY;
+        startHeight = panel.getBoundingClientRect().height;
+        panel.classList.add("resizing"); // Disable transition
+        document.body.style.cursor = "ns-resize";
+        e.preventDefault();
+    });
+
+    document.addEventListener("mousemove", (e) => {
+        if (!isResizing) return;
+        const delta = lastDownY - e.clientY; // Drag up -> Increase height
+        const newHeight = startHeight + delta;
+        
+        // Constraints
+        const maxH = window.innerHeight - 150; // Keep some top space
+        if (newHeight > 48 && newHeight < maxH) {
+            panel.style.height = newHeight + "px";
+        }
+    });
+
+    document.addEventListener("mouseup", () => {
+        if (isResizing) {
+            isResizing = false;
+            panel.classList.remove("resizing");
+            document.body.style.cursor = "";
+            
+            // If user dragged it very small, maybe snap to collapse?
+            if (panel.getBoundingClientRect().height < 50) {
+                 panel.classList.add("collapsed");
+                 panel.style.height = ""; // Reset inline to allow CSS to handle it? OR keep it.
+                 // Better: set specific collapsed height or remove inline to let class win
+                 icon.innerText = "expand_less";
+            } else {
+                 panel.classList.remove("collapsed");
+                 icon.innerText = "expand_more";
+            }
+        }
+    });
 }
 
 function loadState() {
@@ -74,6 +141,25 @@ function saveState() {
 
 function updatePlot() {
     const container = document.getElementById("plot-target");
+    
+    // Auto-size Logic
+    if (appState.width === null && appState.height === null) {
+        container.classList.add("plot-auto-size");
+        container.style.width = "";
+        container.style.height = "";
+        container.style.aspectRatio = "1/1";
+    } else {
+        container.classList.remove("plot-auto-size");
+        // Apply manual size if specified, allowing container to grow/shrink
+        if (appState.width) container.style.width = appState.width + "px";
+        if (appState.height) container.style.height = appState.height + "px";
+        
+        // Remove enforced aspect ratio if not auto (let library handle it or user params)
+        // If appState.aspectRatio is set, the library usually handles the VIEWBOX.
+        // We shouldn't force container aspect ratio unless we want to clip it.
+        container.style.aspectRatio = ""; 
+    }
+
     container.innerHTML = "";
     saveState();
     try {
@@ -267,14 +353,99 @@ function bindInput(id, key, isNum = false) {
 }
 function bindLimitInput(id, arrayName, index) {
     const el = document.getElementById(id);
-    el.oninput = (e) => {
-        const val = parseFloat(e.target.value);
-        if(!appState[arrayName]) appState[arrayName] = [-10, 10];
-        appState[arrayName][index] = val; updateJSONEditor(); updatePlot();
+    el.onchange = (e) => {
+        let val = e.target.value;
+        if (val === "") {
+            val = (index === 0) ? -9.9 : 9.9;
+            e.target.value = val;
+        }
+        if(!appState[arrayName]) appState[arrayName] = [-9.9, 9.9];
+        appState[arrayName][index] = parseFloat(val); 
+        updateJSONEditor(); updatePlot();
     };
 }
 function refresh() { updateJSONEditor(); updatePlot(); }
-function updateJSONEditor() { document.getElementById("json-editor").value = JSON.stringify(cleanStateForLib(appState), null, 2); }
+function updateJSONEditor() { 
+    // Use custom formatter for "inline" style
+    document.getElementById("json-editor").value = formatJSON(cleanStateForLib(appState));
+}
+
+function formatJSON(obj) {
+    // Custom stringifier to keep objects compact
+    let json = JSON.stringify(obj, null, 2);
+    
+    // Collapse simple arrays like [1, 2] to one line
+    json = json.replace(/\[\s+([\d.-]+),\s+([\d.-]+)\s+\]/g, "[$1, $2]");
+    
+    // Collapse Data Items to single lines if possible
+    // We regex replace the "data": [ ... ] block content
+    // This is a bit hacky but works for simple structures. 
+    // Better: Helper function to stringify specific objects compactly.
+    
+    const lines = [];
+    lines.push("{");
+    const keys = Object.keys(obj);
+    keys.forEach((key, i) => {
+        const val = obj[key];
+        let valStr = "";
+        
+        if (key === 'data' && Array.isArray(val)) {
+            valStr = "[\n";
+            val.forEach((item, j) => {
+                // Stringify item tightly
+                let itemStr = "{ ";
+                
+                // --- CUSTOM ORDERING LOGIC ---
+                // Prioritize "type" identifying keys
+                const orderedKeys = [];
+                // 1. Identification (Infer type since 'type' prop is deleted)
+                if (item.fn !== undefined) orderedKeys.push('fn');
+                else if (item.implicit !== undefined) orderedKeys.push('implicit');
+                else if (item.points !== undefined) orderedKeys.push('points');
+                else if (item.x !== undefined) orderedKeys.push('x');
+                
+                // 2. Common props
+                // 'type' is usually deleted, so we don't handle it here.
+                
+                // 3. Other properties
+                Object.keys(item).forEach(k => {
+                   if (!orderedKeys.includes(k) && k !== 'type') orderedKeys.push(k);
+                });
+                
+                orderedKeys.forEach((k, m) => {
+                    let v = item[k];
+                    // Omissions
+                    if (k === 'color' && !v) return; // Skip empty color
+                    if (k === 'color' && v === 'red' && obj.theme === 'red') return; // Skip red if default
+                    
+                    if (Array.isArray(v)) v = JSON.stringify(v).replace(/,/g, ", ");
+                    else if (typeof v === 'string') v = `"${v}"`;
+                    
+                    itemStr += `"${k}": ${v}`;
+                    if (m < orderedKeys.length - 1) itemStr += ", ";
+                });
+                // Trim trailing comma if any (from skipped items)
+                itemStr = itemStr.replace(/, $/, ""); 
+                
+                itemStr += " }";
+                valStr += "    " + itemStr;
+                if (j < val.length - 1) valStr += ",";
+                valStr += "\n";
+            });
+            valStr += "  ]";
+        } else if (key === 'xlim' || key === 'ylim') {
+            valStr = JSON.stringify(val).replace(/,/g, ", "); 
+        } else if (key === 'params') {
+             valStr = JSON.stringify(val, null, 2).replace(/\n/g, "\n  "); 
+        } else {
+            valStr = JSON.stringify(val);
+        }
+        
+        lines.push(`  "${key}": ${valStr}` + (i < keys.length - 1 ? "," : ""));
+    });
+    lines.push("}");
+    return lines.join("\n");
+}
 
 // ==========================================
 // RENDER PARAMS (New Style: .component-row)
@@ -287,11 +458,11 @@ function renderParams() {
         const row = document.createElement("div"); row.className = "component-row";
         row.innerHTML = `
             <div class="control-row" style="margin-bottom:6px">
-                <input type="text" value="${key}" style="width:40px; font-weight:bold" onchange="renameParam('${key}', this.value)">
+                <input type="text" value="${key}" class="input-sm" style="font-weight:bold" onchange="renameParam('${key}', this.value)">
                 <div class="inputs-compact">
-                    <input type="number" value="${p.min}" style="width:40px" onchange="updateParam('${key}','min',this.value)">
+                    <input type="number" value="${p.min}" class="input-sm" onchange="updateParam('${key}','min',this.value)">
                     <span style="color:#ccc">..</span>
-                    <input type="number" value="${p.max}" style="width:40px" onchange="updateParam('${key}','max',this.value)">
+                    <input type="number" value="${p.max}" class="input-sm" onchange="updateParam('${key}','max',this.value)">
                 </div>
                 <button class="delete-btn" onclick="deleteParam('${key}')">×</button>
             </div>
@@ -352,16 +523,16 @@ function renderItems() {
         } else if (item.type === "point") {
             const pt = (item.points && item.points[0]) ? item.points[0] : [0,0];
             inputs = `<div class="inputs-compact" style="flex:1;">
-                <input type="number" value="${pt[0]}" class="input-bold" style="width:60px" onchange="updateItemPoint(${index}, 0, this.value)">
+                <input type="number" value="${pt[0]}" class="input-bold input-md" onchange="updateItemPoint(${index}, 0, this.value)">
                 <span class="input-bold" style="color:#aaa">,</span>
-                <input type="number" value="${pt[1]}" class="input-bold" style="width:60px" onchange="updateItemPoint(${index}, 1, this.value)">
+                <input type="number" value="${pt[1]}" class="input-bold input-md" onchange="updateItemPoint(${index}, 1, this.value)">
             </div>`;
         } else if (item.type === "implicit") {
             inputs = `<input type="text" value="${item.fn || item.implicit}" placeholder="x^2+y^2=1" class="input-bold" style="flex:1; border:none;" onchange="updateItem(${index}, 'implicit', this.value)">`;
         } else if (item.type === "xline") {
             inputs = `<div class="inputs-compact" style="flex:1; padding-left:4px;">
                 <span class="input-bold">x =</span>
-                <input type="number" value="${item.x}" class="input-bold" style="width:70px" onchange="updateItem(${index}, 'x', this.value)">
+                <input type="number" value="${item.x}" class="input-bold input-md" onchange="updateItem(${index}, 'x', this.value)">
             </div>`;
         }
 
@@ -380,17 +551,17 @@ function renderItems() {
                 <div class="control-row mb-1">
                     <span class="control-label">Line</span>
                     <div class="inputs-compact">
-                        <input type="number" value="${item.width||2}" placeholder="W" style="width:50px" onchange="updateItem(${index}, 'width', this.value)">
-                        <input type="text" value="${item.dash||''}" placeholder="Dash" style="width:60px" onchange="updateItem(${index}, 'dash', this.value)">
+                        <input type="number" value="${item.width||2}" placeholder="W" class="input-sm" onchange="updateItem(${index}, 'width', this.value)">
+                        <input type="text" value="${item.dash||''}" placeholder="Dash" class="input-md" onchange="updateItem(${index}, 'dash', this.value)">
                     </div>
                 </div>
                 ${item.type==='fun' ? `
                 <div class="control-row mb-1">
                     <span class="control-label">Domain</span>
                     <div class="inputs-compact">
-                       <input type="number" value="${item.domain?item.domain[0]:''}" placeholder="-∞" style="width:50px" onchange="updateItemDomain(${index},0,this.value)">
+                       <input type="number" value="${item.domain?item.domain[0]:''}" placeholder="-∞" class="input-sm" onchange="updateItemDomain(${index},0,this.value)">
                        <span style="color:#ccc">..</span>
-                       <input type="number" value="${item.domain?item.domain[1]:''}" placeholder="+∞" style="width:50px" onchange="updateItemDomain(${index},1,this.value)">
+                       <input type="number" value="${item.domain?item.domain[1]:''}" placeholder="+∞" class="input-sm" onchange="updateItemDomain(${index},1,this.value)">
                     </div>
                 </div>`:''}
                 <div class="control-row mb-1">
@@ -430,4 +601,16 @@ window.deleteItem = (i) => { appState.data.splice(i, 1); renderItems(); refresh(
 window.updateItem = (i, f, v) => { appState.data[i][f] = v; refresh(); };
 window.updateItemPoint = (i, c, v) => { const it=appState.data[i]; if(!it.points)it.points=[[0,0]]; it.points[0][c]=parseFloat(v); refresh(); };
 window.updateItemDomain = (i, idx, v) => { const it=appState.data[i]; if(v===""){if(it.domain)delete it.domain;}else{if(!it.domain)it.domain=[-10,10];it.domain[idx]=parseFloat(v);} refresh(); };
-function setupCollapsibles() { document.querySelectorAll('.sidebar > .section-header-collapsible').forEach(h => { h.onclick=()=>{ const t=document.getElementById(h.getAttribute('data-target')); if(t){t.classList.toggle('collapsed'); }};});}
+
+function setupCollapsibles() { 
+    document.querySelectorAll('.section-header-collapsible').forEach(h => { 
+        h.onclick = () => { 
+            const t = document.getElementById(h.getAttribute('data-target')); 
+            if (t) { 
+                t.classList.toggle('collapsed');
+                const icon = h.querySelector('.dropdown-icon');
+                if(icon) icon.innerText = t.classList.contains('collapsed') ? 'expand_more' : 'expand_less';
+            }
+        };
+    });
+}
