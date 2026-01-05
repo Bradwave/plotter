@@ -671,6 +671,16 @@ function renderItems() {
                     </div>
                 </div>`:''}
                 
+                ${item.type==='xline' ? `
+                <div class="control-row">
+                    <span class="control-label" style="min-width:50px">Range</span>
+                    <div class="inputs-compact">
+                        <input type="number" value="${item.range?item.range[0]:''}" placeholder="Min" class="input-sm" onchange="updateItemRange(${index},0,this.value)">
+                        <span style="color:#ccc">..</span>
+                        <input type="number" value="${item.range?item.range[1]:''}" placeholder="Max" class="input-sm" onchange="updateItemRange(${index},1,this.value)">
+                    </div>
+                </div>`:''}
+                
                 <div class="control-row">
                    <span class="control-label" style="min-width:50px">Label</span>
                    <input type="text" class="input-full" value="${escAttr(item.label||'')}" placeholder="Aa" onchange="updateItem(${index}, 'label', this.value)">
@@ -713,6 +723,7 @@ window.deleteItem = (i) => { appState.data.splice(i, 1); renderItems(); refresh(
 window.updateItem = (i, f, v) => { appState.data[i][f] = v; refresh(); };
 window.updateItemPoint = (i, c, v) => { const it=appState.data[i]; if(!it.points)it.points=[[0,0]]; it.points[0][c]=parseFloat(v); refresh(); };
 window.updateItemDomain = (i, idx, v) => { const it=appState.data[i]; if(v===""){if(it.domain)delete it.domain;}else{if(!it.domain)it.domain=[-10,10];it.domain[idx]=parseFloat(v);} refresh(); };
+window.updateItemRange = (i, idx, v) => { const it=appState.data[i]; if(v===""){if(it.range)delete it.range;}else{if(!it.range)it.range=[-10,10];it.range[idx]=parseFloat(v);} refresh(); };
 
 // Custom Color Picker Helper
 function renderColorPicker(index, currentColor) {
