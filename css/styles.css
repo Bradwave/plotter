@@ -19,6 +19,11 @@
     --width-sidebar: 450px;
 }
 
+::selection {
+    background: var(--color-accent);
+    color: white;
+}
+
 * {
     box-sizing: border-box;
     outline: none;
@@ -35,6 +40,10 @@ body {
     display: flex;
     font-size: 13px;
     /* Slightly smaller base */
+}
+
+.sidebar header {
+    margin-bottom: 24px;
 }
 
 /* Scrollbar */
@@ -277,7 +286,7 @@ select:focus {
 }
 
 .input-sm {
-    width: 50px !important;
+    width: 60px !important;
 }
 
 .input-md {
@@ -513,6 +522,13 @@ input:checked+.slider:before {
     max-height: 80vh;
     margin: auto;
     /* Center it */
+}
+
+#plot-target.plot-auto-size {
+    width: 100% !important;
+    max-width: 500px !important;
+    max-height: 500px !important;
+    aspect-ratio: 1 / 1 !important;
 }
 
 /* JSON Editor */

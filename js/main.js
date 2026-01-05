@@ -20,7 +20,7 @@ const DEFAULT_STATE = {
     showXTicks: false,
     showYTicks: false,
     
-    interactive: true,
+    interactive: false,
     gridOpacity: 0.8,
     
     // Legend
@@ -197,21 +197,32 @@ function cleanStateForLib(state) {
     if (!config.xStepSecondary) delete config.xStepSecondary;
     if (!config.yStepSecondary) delete config.yStepSecondary;
     
+    // Clean Defaults for Compact JSON
+    if (config.width === null) delete config.width;
+    if (config.height === null) delete config.height;
+    
+    const isDefaultLim = (arr) => Array.isArray(arr) && arr[0] === -9.9 && arr[1] === 9.9;
+    if (isDefaultLim(config.xlim)) delete config.xlim;
+    if (isDefaultLim(config.ylim)) delete config.ylim;
+    
+    if (config.aspectRatio === "1:1") delete config.aspectRatio;
+    
+    if (config.interactive === false) delete config.interactive;
+    if (config.border === true) delete config.border;
+    if (config.theme === 'default') delete config.theme;
+    
     if (!config.legend) delete config.legend;
     if (!config.legendSize) delete config.legendSize;
     if (!config.legendWidth) delete config.legendWidth;
-    if (config.legendPosition === 'top-right') delete config.legendPosition; // Default
+    if (config.legendPosition === 'top-right') delete config.legendPosition; 
     
     if (!config.padding) delete config.padding;
     if (config.gridOpacity === 0.8) delete config.gridOpacity; 
     
-    // Axis visibility defaults (assuming true is default)
     if (config.showXNumbers === true) delete config.showXNumbers;
     if (config.showYNumbers === true) delete config.showYNumbers;
     if (config.showXTicks === false) delete config.showXTicks;
     if (config.showYTicks === false) delete config.showYTicks;
-
-    if (config.theme === 'default') delete config.theme;
 
     config.showSliders = false;
     
@@ -223,11 +234,11 @@ function cleanStateForLib(state) {
             if (!item.label) delete item.label;
             if (!item.labelAt) delete item.labelAt;
             
-            if (item.width === 2) delete item.width; // Default width
+            if (item.width === 2) delete item.width; 
             else if (item.width) item.width = parseFloat(item.width);
             
             if (item.opacity) item.opacity = parseFloat(item.opacity);
-            if (item.color === 'red' && config.theme === 'red') delete item.color; // Contextual default? Maybe risky.
+            if (item.color === 'red' && config.theme === 'red') delete item.color;
         });
     }
     return config;
@@ -298,7 +309,17 @@ function bindGlobalEvents() {
                     }
                 });
             }
-            appState = newState;
+            // Merge with defaults to restore omitted keys
+            appState = { ...JSON.parse(JSON.stringify(DEFAULT_STATE)), ...newState };
+            // Ensure data/params merge correctly if partial? No, usually full replace for array.
+            // But if newState has data, we use it. If not, we keep default? 
+            // Usually JSON edit implies full state description minus defaults.
+            // If user deletes "data", maybe they want empty? 
+            // Let's rely on shallow merge for now, but deep merge for params might be better. 
+            // For now specific overrides:
+            if(newState.data) appState.data = newState.data;
+            if(newState.params) appState.params = newState.params;
+
             syncUIToState(); updatePlot();
         } catch (e) { alert("Invalid JSON"); }
     };
@@ -436,7 +457,17 @@ function formatJSON(obj) {
         } else if (key === 'xlim' || key === 'ylim') {
             valStr = JSON.stringify(val).replace(/,/g, ", "); 
         } else if (key === 'params') {
-             valStr = JSON.stringify(val, null, 2).replace(/\n/g, "\n  "); 
+             // Custom inline formatting for params
+             valStr = "{\n";
+             const paramKeys = Object.keys(val);
+             paramKeys.forEach((pK, pI) => {
+                 let pVal = JSON.stringify(val[pK]);
+                 // add space after colons for readability
+                 pVal = pVal.replace(/:/g, ": "); 
+                 pVal = pVal.replace(/,/g, ", ");
+                 valStr += `    "${pK}": ${pVal}` + (pI < paramKeys.length -1 ? "," : "") + "\n";
+             });
+             valStr += "  }";
         } else {
             valStr = JSON.stringify(val);
         }
