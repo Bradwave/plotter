@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matephis Plotter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="styles.css">
+    <!-- Matephis Plot Library -->
+    <script src="js/matephis-plot.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <header>
+                <h1>MATEPHIS PLOTTER</h1>
+                <p>Create and style mathematical plots.</p>
+            </header>
+
+            <!-- Global Settings -->
+            <div class="section-header-collapsible" data-target="global-settings">
+                <div class="section-title">Global Settings</div>
+                <span class="material-symbols-outlined dropdown-icon">expand_more</span>
+            </div>
+            <div id="global-settings" class="collapsible-content">
+                <div class="control-group">
+                    <div class="control-row">
+                        <span class="control-label">Size (px)</span>
+                        <div class="inputs-compact">
+                            <input type="number" id="g-width" value="600" title="Width">
+                            <span style="color: var(--color-text-muted)">x</span>
+                            <input type="number" id="g-height" value="600" title="Height">
+                        </div>
+                    </div>
+                    
+                    <div class="control-row">
+                        <span class="control-label">X Limits</span>
+                        <div class="inputs-compact">
+                            <input type="number" id="g-xmin" value="-10" title="Min X">
+                            <span style="color: var(--color-text-muted)">:</span>
+                            <input type="number" id="g-xmax" value="10" title="Max X">
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Y Limits</span>
+                        <div class="inputs-compact">
+                            <input type="number" id="g-ymin" value="-10" title="Min Y">
+                            <span style="color: var(--color-text-muted)">:</span>
+                            <input type="number" id="g-ymax" value="10" title="Max Y">
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Aspect Ratio</span>
+                        <input type="text" id="g-aspect" value="1:1" style="width: 80px; text-align: center;">
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Grid</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="g-grid" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Axis Labels</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="g-labels" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Theme</span>
+                        <select id="g-theme">
+                            <option value="red">Red</option>
+                            <option value="default">Blue (Default)</option>
+                            <option value="black">Black</option>
+                            <option value="sunburst">Sunburst</option>
+                            <option value="coastal">Coastal</option>
+                            <option value="seaside">Seaside</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parameters -->
+            <div class="section-header-collapsible" data-target="params-section">
+                <div class="section-title">Parameters</div>
+                <span class="material-symbols-outlined dropdown-icon">expand_more</span>
+            </div>
+            <div id="params-section" class="collapsible-content">
+                <div id="params-list"></div>
+                <button class="secondary btn-full" id="add-param-btn">
+                    <span class="material-symbols-outlined">add</span> Add Parameter
+                </button>
+            </div>
+
+            <!-- Plot Items -->
+            <div class="section-header-collapsible" data-target="items-section">
+                <div class="section-title">Plot Items</div>
+                <span class="material-symbols-outlined dropdown-icon">expand_more</span>
+            </div>
+            <div id="items-section" class="collapsible-content">
+                <div id="items-list"></div>
+                <div class="add-item-bar">
+                    <button class="secondary" onclick="addItem('fun')">f(x)</button>
+                    <button class="secondary" onclick="addItem('point')">Point</button>
+                    <button class="secondary" onclick="addItem('implicit')">Implicit</button>
+                    <button class="secondary" onclick="addItem('xline')">VLine</button>
+                </div>
+            </div>
+
+            <!-- JSON Data -->
+            <div class="section-header-collapsible" data-target="json-section">
+                <div class="section-title">JSON Configuration</div>
+                <span class="material-symbols-outlined dropdown-icon">expand_more</span>
+            </div>
+            <div id="json-section" class="collapsible-content">
+                <textarea id="json-editor"></textarea>
+                <button class="primary btn-full" id="update-from-json-btn">Update Plot from JSON</button>
+                <button class="secondary btn-full" id="copy-json-btn" style="margin-top: 8px;">Copy JSON</button>
+            </div>
+            
+            <div style="flex: 1;"></div>
+            
+             <button id="refresh-btn" class="primary btn-full" style="margin-top: 20px;">
+                <span class="material-symbols-outlined">refresh</span> Refresh Plot
+            </button>
+
+        </aside>
+
+        <!-- Main Plot Area -->
+        <main class="canvas-wrapper">
+           <div id="plot-target" class="matephis-plot"></div>
+        </main>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
