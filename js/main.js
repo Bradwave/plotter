@@ -47,6 +47,7 @@ function init() {
     bindGlobalEvents();
     syncUIToState();
     setupCollapsibles();
+    updatePlot(); // Ensure plot is visible on reload
 }
 
 function loadState() {
@@ -351,16 +352,16 @@ function renderItems() {
         } else if (item.type === "point") {
             const pt = (item.points && item.points[0]) ? item.points[0] : [0,0];
             inputs = `<div class="inputs-compact" style="flex:1;">
-                <input type="number" value="${pt[0]}" class="input-bold" style="width:50px" onchange="updateItemPoint(${index}, 0, this.value)">
+                <input type="number" value="${pt[0]}" class="input-bold" style="width:60px" onchange="updateItemPoint(${index}, 0, this.value)">
                 <span class="input-bold" style="color:#aaa">,</span>
-                <input type="number" value="${pt[1]}" class="input-bold" style="width:50px" onchange="updateItemPoint(${index}, 1, this.value)">
+                <input type="number" value="${pt[1]}" class="input-bold" style="width:60px" onchange="updateItemPoint(${index}, 1, this.value)">
             </div>`;
         } else if (item.type === "implicit") {
             inputs = `<input type="text" value="${item.fn || item.implicit}" placeholder="x^2+y^2=1" class="input-bold" style="flex:1; border:none;" onchange="updateItem(${index}, 'implicit', this.value)">`;
         } else if (item.type === "xline") {
             inputs = `<div class="inputs-compact" style="flex:1; padding-left:4px;">
-                <span class="input-bold">x=</span>
-                <input type="number" value="${item.x}" class="input-bold" style="width:60px" onchange="updateItem(${index}, 'x', this.value)">
+                <span class="input-bold">x =</span>
+                <input type="number" value="${item.x}" class="input-bold" style="width:70px" onchange="updateItem(${index}, 'x', this.value)">
             </div>`;
         }
 
@@ -379,17 +380,17 @@ function renderItems() {
                 <div class="control-row mb-1">
                     <span class="control-label">Line</span>
                     <div class="inputs-compact">
-                        <input type="number" value="${item.width||2}" placeholder="W" style="width:40px" onchange="updateItem(${index}, 'width', this.value)">
-                        <input type="text" value="${item.dash||''}" placeholder="Dash" style="width:50px" onchange="updateItem(${index}, 'dash', this.value)">
+                        <input type="number" value="${item.width||2}" placeholder="W" style="width:50px" onchange="updateItem(${index}, 'width', this.value)">
+                        <input type="text" value="${item.dash||''}" placeholder="Dash" style="width:60px" onchange="updateItem(${index}, 'dash', this.value)">
                     </div>
                 </div>
                 ${item.type==='fun' ? `
                 <div class="control-row mb-1">
                     <span class="control-label">Domain</span>
                     <div class="inputs-compact">
-                       <input type="number" value="${item.domain?item.domain[0]:''}" placeholder="-∞" style="width:40px" onchange="updateItemDomain(${index},0,this.value)">
+                       <input type="number" value="${item.domain?item.domain[0]:''}" placeholder="-∞" style="width:50px" onchange="updateItemDomain(${index},0,this.value)">
                        <span style="color:#ccc">..</span>
-                       <input type="number" value="${item.domain?item.domain[1]:''}" placeholder="+∞" style="width:40px" onchange="updateItemDomain(${index},1,this.value)">
+                       <input type="number" value="${item.domain?item.domain[1]:''}" placeholder="+∞" style="width:50px" onchange="updateItemDomain(${index},1,this.value)">
                     </div>
                 </div>`:''}
                 <div class="control-row mb-1">
