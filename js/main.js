@@ -182,8 +182,9 @@ function cleanStateForLib(state) {
     
     // Compact Size: Only include if set
     if (!config.width) {
-        config.fullWidth = true; // Still need this for library responsiveness
+        // config.fullWidth = false; // Default is false, so just delete width
         delete config.width;
+        if (config.fullWidth === true) { /* keep it */ } else delete config.fullWidth;
     } else {
         config.width = parseInt(config.width);
     }
@@ -224,7 +225,15 @@ function cleanStateForLib(state) {
     if (config.showXTicks === false) delete config.showXTicks;
     if (config.showYTicks === false) delete config.showYTicks;
 
-    config.showSliders = false;
+    if (config.axisLabels && Array.isArray(config.axisLabels)) {
+        if (config.axisLabels[0] === 'x' && config.axisLabels[1] === 'y') {
+            delete config.axisLabels;
+        }
+    }
+
+    // Default showSliders is false/undefined in library? 
+    // If we want to omit it completely:
+    delete config.showSliders; 
     
     if (config.data) {
         config.data.forEach(item => {
@@ -290,6 +299,14 @@ function bindGlobalEvents() {
     document.getElementById("g-theme").onchange = (e) => { appState.theme = e.target.value; refresh(); };
     document.getElementById("refresh-btn").onclick = () => updatePlot();
     
+    document.getElementById("clear-btn").onclick = () => {
+        if(confirm("Reset everything to default?")) {
+            appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+            syncUIToState();
+            refresh();
+        }
+    };
+    
     document.getElementById("copy-json-btn").onclick = () => {
         navigator.clipboard.writeText(JSON.stringify(cleanStateForLib(appState), null, 2));
     };
@@ -320,12 +337,42 @@ function bindGlobalEvents() {
             if(newState.data) appState.data = newState.data;
             if(newState.params) appState.params = newState.params;
 
-            syncUIToState(); updatePlot();
+            syncUIToState(true); updatePlot();
         } catch (e) { alert("Invalid JSON"); }
     };
+
+    // Auto-update on type (Debounce)
+    let jsonDebounce;
+    document.getElementById("json-editor").addEventListener("input", () => {
+        clearTimeout(jsonDebounce);
+        jsonDebounce = setTimeout(() => {
+            try {
+                const raw = document.getElementById("json-editor").value;
+                const newState = JSON.parse(raw); // Check validity
+                
+                // Merge logic (duplicated from button, could be shared)
+                if (newState.data) {
+                    newState.data.forEach(d => {
+                        if(!d.type) {
+                            if(d.fn) d.type = 'fun';
+                            else if(d.points) d.type = 'point'; 
+                            else if(d.implicit) d.type = 'implicit';
+                            else if(d.x !== undefined) d.type = 'xline';
+                            else d.type = 'fun';
+                        }
+                    });
+                }
+                appState = { ...JSON.parse(JSON.stringify(DEFAULT_STATE)), ...newState };
+                if(newState.data) appState.data = newState.data;
+                if(newState.params) appState.params = newState.params;
+                
+                syncUIToState(true); updatePlot();
+            } catch(e) { /* Ignore invalid JSON during typing */ }
+        }, 800);
+    });
 }
 
-function syncUIToState() {
+function syncUIToState(fromJSON = false) {
     document.getElementById("g-width").value = appState.width || "";
     document.getElementById("g-height").value = appState.height || "";
     document.getElementById("g-xmin").value = appState.xlim[0];
@@ -360,7 +407,7 @@ function syncUIToState() {
     
     renderParams();
     renderItems();
-    updateJSONEditor();
+    if (!fromJSON) updateJSONEditor();
 }
 
 function bindInput(id, key, isNum = false) {
@@ -484,27 +531,30 @@ function formatJSON(obj) {
 function renderParams() {
     const list = document.getElementById("params-list"); list.innerHTML = "";
     if (!appState.params) appState.params = {};
+    const escAttr = (s) => (s||"").toString().replace(/"/g, "&quot;");
+    const escJs = (s) => (s||"").toString().replace(/'/g, "\\'");
+
     Object.keys(appState.params).forEach(key => {
         const p = appState.params[key];
         const row = document.createElement("div"); row.className = "component-row";
         row.innerHTML = `
             <div class="control-row" style="margin-bottom:6px">
-                <input type="text" value="${key}" class="input-sm" style="font-weight:bold" onchange="renameParam('${key}', this.value)">
+                <input type="text" value="${escAttr(key)}" class="input-sm" style="font-weight:bold" onchange="renameParam('${escJs(key)}', this.value)">
                 <div class="inputs-compact">
-                    <input type="number" value="${p.min}" class="input-sm" onchange="updateParam('${key}','min',this.value)" title="Min">
+                    <input type="number" value="${p.min}" class="input-sm" onchange="updateParam('${escJs(key)}','min',this.value)" title="Min">
                     <span style="color:#ccc">..</span>
                     <input type="number" value="${p.max}" class="input-sm" onchange="updateParam('${key}','max',this.value)" title="Max">
                 </div>
                 <!-- Step Input -->
                 <div style="display:flex; align-items:center; gap:4px">
                     <span style="font-size:0.8em; color:#888">Step: </span>
-                    <input type="number" value="${p.step||0.1}" class="input-sm" style="width:40px !important" onchange="updateParam('${key}','step',this.value)" title="Step">
+                    <input type="number" step="any" value="${p.step||0.1}" class="input-lg param-step-input" onchange="updateParam('${escJs(key)}','step',this.value)" title="Step">
                 </div>
-                <button class="delete-btn" onclick="deleteParam('${key}')">×</button>
+                <button class="delete-btn" onclick="deleteParam('${escJs(key)}')">×</button>
             </div>
             <div class="control-row">
-                 <input type="range" min="${p.min}" max="${p.max}" step="${p.step||0.1}" value="${p.val}" oninput="updateParam('${key}', 'val', this.value)">
-                 <span style="font-size:0.7em; color:var(--color-accent); width:30px; text-align:right;">${p.val}</span>
+                 <input type="range" min="${p.min}" max="${p.max}" step="${p.step||0.1}" value="${p.val}" oninput="updateParam('${escJs(key)}', 'val', this.value)">
+                 <span id="param-val-${key}" class="param-val-display">${p.val}</span>
             </div>
         `;
         list.appendChild(row);
@@ -524,7 +574,13 @@ window.renameParam = (oldKey, newKey) => {
 };
 window.updateParam = (key, field, val) => {
     appState.params[key][field] = parseFloat(val);
-    if(field === 'val') updatePlot(); else { renderParams(); refresh(); }
+    if(field === 'val') {
+        const span = document.getElementById(`param-val-${key}`);
+        if(span) span.innerText = parseFloat(val); // Clean format
+        updatePlot(); 
+    } else { 
+        renderParams(); refresh(); 
+    }
 };
 
 // ==========================================
@@ -553,9 +609,11 @@ function renderItems() {
         else if(item.type === 'xline') typeBadge = 'xL';
         else typeBadge = item.type;
 
+        const escAttr = (s) => (s||"").toString().replace(/"/g, "&quot;");
+        
         // Header Inputs
         if (item.type === "fun") {
-            inputs = `<input type="text" value="${item.fn}" placeholder="x^2" class="input-bold" style="flex:1; border:none; background:transparent;" onchange="updateItem(${index}, 'fn', this.value)">`;
+            inputs = `<input type="text" value="${escAttr(item.fn)}" placeholder="x^2" class="input-bold" style="flex:1; border:none; background:transparent;" onchange="updateItem(${index}, 'fn', this.value)">`;
         } else if (item.type === "point") {
             const pt = (item.points && item.points[0]) ? item.points[0] : [0,0];
             inputs = `<div class="inputs-compact" style="flex:1;">
@@ -564,7 +622,7 @@ function renderItems() {
                 <input type="number" value="${pt[1]}" class="input-bold input-md" onchange="updateItemPoint(${index}, 1, this.value)">
             </div>`;
         } else if (item.type === "implicit") {
-            inputs = `<input type="text" value="${item.fn || item.implicit}" placeholder="x^2+y^2=1" class="input-bold" style="flex:1; border:none;" onchange="updateItem(${index}, 'implicit', this.value)">`;
+            inputs = `<input type="text" value="${escAttr(item.fn || item.implicit)}" placeholder="x^2+y^2=1" class="input-bold" style="flex:1; border:none;" onchange="updateItem(${index}, 'implicit', this.value)">`;
         } else if (item.type === "xline") {
             inputs = `<div class="inputs-compact" style="flex:1; padding-left:4px;">
                 <span class="input-bold">x =</span>
@@ -615,7 +673,7 @@ function renderItems() {
                 
                 <div class="control-row">
                    <span class="control-label" style="min-width:50px">Label</span>
-                   <input type="text" class="input-full" value="${item.label||''}" placeholder="Aa" onchange="updateItem(${index}, 'label', this.value)">
+                   <input type="text" class="input-full" value="${escAttr(item.label||'')}" placeholder="Aa" onchange="updateItem(${index}, 'label', this.value)">
                 </div>
                 
                  <div class="control-row">

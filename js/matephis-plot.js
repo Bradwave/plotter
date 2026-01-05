@@ -128,7 +128,7 @@ class MatephisPlot {
 
         // Initialize components
         this._initSVG();
-        if (this.config.params && this.config.showSliders !== false) this._initSliders();
+        if (this.config.params && this.config.showSliders === true) this._initSliders();
         if (this.config.interactive) {
             this._initControlsOverlay();
             this._initInteractions();
