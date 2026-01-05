@@ -491,14 +491,19 @@ function renderParams() {
             <div class="control-row" style="margin-bottom:6px">
                 <input type="text" value="${key}" class="input-sm" style="font-weight:bold" onchange="renameParam('${key}', this.value)">
                 <div class="inputs-compact">
-                    <input type="number" value="${p.min}" class="input-sm" onchange="updateParam('${key}','min',this.value)">
+                    <input type="number" value="${p.min}" class="input-sm" onchange="updateParam('${key}','min',this.value)" title="Min">
                     <span style="color:#ccc">..</span>
-                    <input type="number" value="${p.max}" class="input-sm" onchange="updateParam('${key}','max',this.value)">
+                    <input type="number" value="${p.max}" class="input-sm" onchange="updateParam('${key}','max',this.value)" title="Max">
+                </div>
+                <!-- Step Input -->
+                <div style="display:flex; align-items:center; gap:4px">
+                    <span style="font-size:0.8em; color:#888">Step: </span>
+                    <input type="number" value="${p.step||0.1}" class="input-sm" style="width:40px !important" onchange="updateParam('${key}','step',this.value)" title="Step">
                 </div>
                 <button class="delete-btn" onclick="deleteParam('${key}')">×</button>
             </div>
             <div class="control-row">
-                 <input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.val}" oninput="updateParam('${key}', 'val', this.value)">
+                 <input type="range" min="${p.min}" max="${p.max}" step="${p.step||0.1}" value="${p.val}" oninput="updateParam('${key}', 'val', this.value)">
                  <span style="font-size:0.7em; color:var(--color-accent); width:30px; text-align:right;">${p.val}</span>
             </div>
         `;
@@ -569,41 +574,59 @@ function renderItems() {
 
         const detailsId = `details-${index}`;
         
-        // Color Picker HTML
-        let colorHtml = `<div class="color-picker-row">`;
-        COLOR_PALETTE.forEach(c => {
-            const active = (item.color === c || (!item.color && c==='red')) ? 'active' : '';
-            colorHtml += `<div class="color-swatch ${active}" style="background-color:${c}" onclick="updateItem(${index}, 'color', '${c}')"></div>`;
-        });
-        colorHtml += `</div>`;
+        // Use New Color Picker Helper
+        let colorHtml = renderColorPicker(index, item.color || "red");
 
-        const details = `
-            <div id="${detailsId}" class="collapsible-content collapsed" style="border-top:1px solid #f0f0f0; margin-top:8px; padding-top:12px;">
-                <div class="control-row mb-1">
-                    <span class="control-label">Line</span>
+        // Conditional Options based on Type
+        let styleOptions = "";
+        if (item.type === 'point') {
+             styleOptions = `
+                <div class="control-row">
+                    <span class="control-label" style="min-width:50px">Radius</span>
+                    <input type="number" value="${item.radius||4}" class="input-sm" onchange="updateItem(${index}, 'radius', this.value)">
+                </div>
+             `;
+        } else {
+            // Default (Fun, Implicit, XLine) -> Width & Dash
+             styleOptions = `
+                <div class="control-row">
+                    <span class="control-label" style="min-width:50px">Line</span>
                     <div class="inputs-compact">
                         <input type="number" value="${item.width||2}" placeholder="W" class="input-sm" onchange="updateItem(${index}, 'width', this.value)">
                         <input type="text" value="${item.dash||''}" placeholder="Dash" class="input-md" onchange="updateItem(${index}, 'dash', this.value)">
                     </div>
                 </div>
+             `;
+        }
+
+        const details = `
+            <div id="${detailsId}" class="collapsible-content collapsed item-details-panel">
+                ${styleOptions}
+                
                 ${item.type==='fun' ? `
-                <div class="control-row mb-1">
-                    <span class="control-label">Domain</span>
+                <div class="control-row">
+                    <span class="control-label" style="min-width:50px">Dom</span>
                     <div class="inputs-compact">
-                       <input type="number" value="${item.domain?item.domain[0]:''}" placeholder="-∞" class="input-sm" onchange="updateItemDomain(${index},0,this.value)">
-                       <span style="color:#ccc">..</span>
-                       <input type="number" value="${item.domain?item.domain[1]:''}" placeholder="+∞" class="input-sm" onchange="updateItemDomain(${index},1,this.value)">
+                        <input type="number" value="${item.domain?item.domain[0]:''}" placeholder="-∞" class="input-sm" onchange="updateItemDomain(${index},0,this.value)">
+                        <span style="color:#ccc">..</span>
+                        <input type="number" value="${item.domain?item.domain[1]:''}" placeholder="+∞" class="input-sm" onchange="updateItemDomain(${index},1,this.value)">
                     </div>
                 </div>`:''}
-                <div class="control-row mb-1">
-                   <span class="control-label">Label</span>
-                   <input type="text" value="${item.label||''}" placeholder="Aa" onchange="updateItem(${index}, 'label', this.value)">
+                
+                <div class="control-row">
+                   <span class="control-label" style="min-width:50px">Label</span>
+                   <input type="text" class="input-full" value="${item.label||''}" placeholder="Aa" onchange="updateItem(${index}, 'label', this.value)">
                 </div>
                 
-                <div style="margin-top:8px;">
-                    <span class="control-label" style="display:block; margin-bottom:4px;">Color</span>
-                    ${colorHtml}
+                 <div class="control-row">
+                    <span class="control-label" style="min-width:50px">Pos</span>
+                    <div class="inputs-compact">
+                        <input type="number" class="input-sm" placeholder="X" value="${item.labelAt ? item.labelAt[0] : ''}" onchange="updateItemLabelAt(${index}, 0, this.value)">
+                        <input type="number" class="input-sm" placeholder="Y" value="${item.labelAt ? item.labelAt[1] : ''}" onchange="updateItemLabelAt(${index}, 1, this.value)">
+                    </div>
                 </div>
+
+                ${colorHtml}
             </div>`;
         
         div.innerHTML = `
@@ -633,15 +656,125 @@ window.updateItem = (i, f, v) => { appState.data[i][f] = v; refresh(); };
 window.updateItemPoint = (i, c, v) => { const it=appState.data[i]; if(!it.points)it.points=[[0,0]]; it.points[0][c]=parseFloat(v); refresh(); };
 window.updateItemDomain = (i, idx, v) => { const it=appState.data[i]; if(v===""){if(it.domain)delete it.domain;}else{if(!it.domain)it.domain=[-10,10];it.domain[idx]=parseFloat(v);} refresh(); };
 
+// Custom Color Picker Helper
+function renderColorPicker(index, currentColor) {
+    // Presets from Matephis Theme
+    const reds = ["#B01A00", "#8b2e1b", "#ce452a"];
+    const greys = ['#000000', '#444444', '#888888'];
+
+    let swatches = "";
+    [...reds, ...greys].forEach((c, i) => {
+        // Simple active check (case insensitive)
+        const isSelected = (currentColor.length > 7 ? currentColor.slice(0,7) : currentColor).toLowerCase() === c.toLowerCase();
+        const active = isSelected ? 'active' : '';
+        swatches += `<div class="color-swatch ${active}" style="background:${c}" onclick="updateItemColor(${index}, '${c}')"></div>`;
+    });
+
+    // Determine background for custom picker (trust value, defaults handled in update)
+    const customBg = currentColor || '#333';
+    const wrapperId = `color-wrapper-${index}`;
+
+    return `
+        <div class="control-row">
+             <span class="control-label">Color</span>
+             <div class="color-picker-container">
+                <div class="color-presets">
+                    ${swatches}
+                </div>
+                <div id="${wrapperId}" class="color-custom-wrapper" style="background:${customBg}">
+                    <input type="color" value="${currentColor.startsWith('#') ? currentColor : '#ff0000'}" 
+                           oninput="updateItemColor(${index}, this.value, true)" title="Custom Color">
+                    <span class="material-symbols-outlined">palette</span>
+                </div>
+             </div>
+        </div>
+    `;
+}
+
+// Optimized Color Updater
+window.updateItemColor = (i, val, isInput = false) => {
+    appState.data[i].color = val;
+    
+    // Update Wrapper Background Immediately
+    const wrapper = document.getElementById(`color-wrapper-${i}`);
+    if (wrapper) wrapper.style.background = val;
+
+    // Only refresh full UI if it's NOT a dragging input (prevent focus loss/lag)
+    // For swatches, we want full refresh to update 'active' classes
+    if (!isInput) {
+        refresh();
+    } else {
+        // Debounced or just plot update?
+        // For smooth color drag, we might want to just update plot
+        updatePlot();
+    }
+};
+
+window.updateItemLabelAt = (i, coordIdx, val) => {
+    if (!appState.data[i].labelAt) appState.data[i].labelAt = [0, 0];
+    appState.data[i].labelAt[coordIdx] = parseFloat(val);
+    refresh();
+};
+
 function setupCollapsibles() { 
+    const saved = JSON.parse(localStorage.getItem("matephis-plotter-ui") || "{}");
+    
     document.querySelectorAll('.section-header-collapsible').forEach(h => { 
+        const targetId = h.getAttribute('data-target');
+        const t = document.getElementById(targetId);
+        if (!t) return;
+
+        // Restore State
+        if (saved[targetId] === 'collapsed') {
+            t.classList.add('collapsed');
+            h.classList.add('collapsed');
+            h.querySelector('.toggle-icon').textContent = 'chevron_right';
+        } else {
+            t.classList.remove('collapsed');
+            h.classList.remove('collapsed');
+            h.querySelector('.toggle-icon').textContent = 'expand_more';
+        }
+
+        h.onclick = () => {
+             const isCol = t.classList.toggle('collapsed');
+             h.classList.toggle('collapsed', isCol);
+             h.querySelector('.toggle-icon').textContent = isCol ? 'chevron_right' : 'expand_more';
+             
+             // Save State
+             saved[targetId] = isCol ? 'collapsed' : 'expanded';
+             localStorage.setItem("matephis-plotter-ui", JSON.stringify(saved));
+        };
+    });
+}
+
+function setupCollapsibles() { 
+    const saved = JSON.parse(localStorage.getItem("matephis-plotter-ui") || "{}");
+    
+    document.querySelectorAll('.section-header-collapsible').forEach(h => { 
+        const targetId = h.getAttribute('data-target');
+        const t = document.getElementById(targetId);
+        if (!t) return;
+
+        // Restore State
+        if (saved[targetId] === 'collapsed') {
+            t.classList.add('collapsed');
+        } else if (saved[targetId] === 'expanded') {
+            t.classList.remove('collapsed');
+        }
+        
+        // Icon Update
+        const icon = h.querySelector('.dropdown-icon');
+        if(icon) icon.innerText = t.classList.contains('collapsed') ? 'expand_more' : 'expand_less';
+
         h.onclick = () => { 
-            const t = document.getElementById(h.getAttribute('data-target')); 
-            if (t) { 
-                t.classList.toggle('collapsed');
-                const icon = h.querySelector('.dropdown-icon');
-                if(icon) icon.innerText = t.classList.contains('collapsed') ? 'expand_more' : 'expand_less';
-            }
+            t.classList.toggle('collapsed');
+            const isCollapsed = t.classList.contains('collapsed');
+            if(icon) icon.innerText = isCollapsed ? 'expand_more' : 'expand_less';
+            
+            // Save State
+            const uiState = JSON.parse(localStorage.getItem("matephis-plotter-ui") || "{}");
+            uiState[targetId] = isCollapsed ? 'collapsed' : 'expanded';
+            localStorage.setItem("matephis-plotter-ui", JSON.stringify(uiState));
         };
     });
 }

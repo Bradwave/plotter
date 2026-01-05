@@ -449,6 +449,13 @@ button.primary:hover {
     gap: 10px;
 }
 
+.item-details-panel {
+    border-top: 1px solid var(--color-border);
+    margin-top: 8px;
+    padding-top: 12px;
+    display: flex; flex-direction: column; gap: 8px; /* Extra gap */
+}
+
 /* Toggle Switch */
 .toggle-switch {
     position: relative;
@@ -495,6 +502,98 @@ input:checked+.slider {
 
 input:checked+.slider:before {
     transform: translateX(14px);
+}
+
+/* Color Picker */
+.color-picker-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.color-presets {
+    display: flex; gap: 4px; flex-wrap: wrap; max-width: 220px;
+}
+.color-swatch {
+    width: 20px; height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    opacity: 0.8;
+}
+.color-swatch:hover { opacity: 1; transform: scale(1.1); }
+.color-swatch.active { border: 2px solid var(--color-text-main); opacity: 1; }
+
+.color-custom-wrapper {
+    position: relative;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    background: #333;
+    flex-shrink: 0;
+}
+.color-custom-wrapper input[type="color"] {
+    position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    cursor: pointer; padding: 0; margin: 0; opacity: 0;
+}
+.color-custom-wrapper .material-symbols-outlined {
+    font-size: 16px;
+    pointer-events: none;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+}
+
+/* Item Card Spacing overrides */
+.item-card-body .control-row {
+    margin-bottom: 4px; /* Compact spacing */
+}
+.item-card-body {
+    padding-bottom: 8px; /* Reduce bottom padding */
+}
+
+.item-details-panel {
+    border-top: 1px solid var(--color-border);
+    margin-top: 6px;
+    padding-top: 8px;
+    display: flex; flex-direction: column; gap: 2px; /* Very compact */
+}
+
+/* Matephis Plot Interactive Controls */
+.matephis-plot-overlay {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    background: white;
+    padding: 6px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: 1px solid var(--color-border);
+    z-index: 100;
+}
+.matephis-plot-btn {
+    width: 32px; height: 32px;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    display: flex; justify-content: center; align-items: center;
+    cursor: pointer;
+    color: var(--color-text-main);
+    padding: 0;
+    transition: all 0.1s;
+}
+.matephis-plot-btn:hover {
+    background: #f5f5f5;
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+}
+.matephis-plot-btn span {
+    font-size: 20px;
 }
 
 /* Main Area */
