@@ -175,24 +175,24 @@
             <div id="items-section" class="collapsible-content">
                 <div id="items-list"></div>
                 <!-- Add Item Buttons -->
-            <div class="add-item-bar" style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:8px;">
-                <button onclick="addItem('fun')" title="Function" style="flex-direction:column; gap:4px; padding:10px;">
-                    <span class="material-symbols-outlined">show_chart</span>
-                    <span style="font-size:0.65rem">Func</span>
-                </button>
-                <button onclick="addItem('implicit')" title="Implicit" style="flex-direction:column; gap:4px; padding:10px;">
-                    <span class="material-symbols-outlined">all_inclusive</span>
-                    <span style="font-size:0.65rem">Impl</span>
-                </button>
-                <button onclick="addItem('point')" title="Point" style="flex-direction:column; gap:4px; padding:10px;">
-                    <span class="material-symbols-outlined">scatter_plot</span>
-                    <span style="font-size:0.65rem">Point</span>
-                </button>
-                <button onclick="addItem('xline')" title="Vertical Line" style="flex-direction:column; gap:4px; padding:10px;">
-                     <span class="material-symbols-outlined">vertical_distribute</span>
-                     <span style="font-size:0.65rem">Vert</span>
-                </button>
-            </div>
+                <div class="add-item-bar" style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:8px;">
+                    <button onclick="addItem('fun')" title="Function" style="flex-direction:column; gap:4px; padding:10px;">
+                        <span class="material-symbols-outlined">show_chart</span>
+                        <span style="font-size:0.65rem">Function</span>
+                    </button>
+                    <button onclick="addItem('implicit')" title="Implicit" style="flex-direction:column; gap:4px; padding:10px;">
+                        <span class="material-symbols-outlined">all_inclusive</span>
+                        <span style="font-size:0.65rem">Implicit</span>
+                    </button>
+                    <button onclick="addItem('point')" title="Point" style="flex-direction:column; gap:4px; padding:10px;">
+                        <span class="material-symbols-outlined">scatter_plot</span>
+                        <span style="font-size:0.65rem">Point</span>
+                    </button>
+                    <button onclick="addItem('xline')" title="Vertical Line" style="flex-direction:column; gap:4px; padding:10px;">
+                         <span class="material-symbols-outlined rotate-90">line_start</span>
+                         <span style="font-size:0.65rem">Vertical Line</span>
+                    </button>
+                </div>
             </div>
 
             <!-- JSON Data -->
@@ -200,10 +200,16 @@
                 <div class="section-title">JSON Configuration</div>
                 <span class="material-symbols-outlined dropdown-icon">expand_more</span>
             </div>
-            <div id="json-section" class="collapsible-content">
+            <div id="json-section" class="collapsible-content collapsed">
+                <div class="json-toolbar">
+                    <button id="update-from-json-btn" class="secondary" style="padding: 6px 12px;">
+                        <span class="material-symbols-outlined" style="font-size:16px">sync</span> Update
+                    </button>
+                    <button id="copy-json-btn" class="secondary" style="padding: 6px 12px;">
+                        <span class="material-symbols-outlined" style="font-size:16px">content_copy</span> Copy
+                    </button>
+                </div>
                 <textarea id="json-editor"></textarea>
-                <button class="primary btn-full" id="update-from-json-btn">Update Plot from JSON</button>
-                <button class="secondary btn-full" id="copy-json-btn" style="margin-top: 8px;">Copy JSON</button>
             </div>
             
             <div style="flex: 1;"></div>

@@ -225,3 +225,68 @@ input:checked + .slider:before { transform: translateX(14px); }
     padding: 12px; font-family: 'Space Mono', monospace; font-size: 11px;
     resize: vertical;
 }
+
+.rotate-90 {
+    transform: rotate(90deg);
+    display: inline-block;
+}
+
+/* Bold inputs for item cards */
+.input-bold {
+    font-weight: 700 !important;
+    color: var(--color-text-main) !important;
+}
+
+/* Color Picker */
+.color-picker-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 4px;
+}
+.color-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.2s;
+    background-clip: padding-box;
+}
+.color-swatch:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.color-swatch.active {
+    border-color: var(--color-text-main);
+}
+
+/* Icon Buttons (General) */
+.btn-icon {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    padding: 6px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center; justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+.btn-icon:hover {
+    background: rgba(0,0,0,0.05);
+    color: var(--color-accent);
+}
+.btn-icon.danger:hover {
+    color: #d32f2f;
+    background: rgba(211, 47, 47, 0.05);
+}
+
+/* JSON Toolbar */
+.json-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    justify-content: flex-end;
+}

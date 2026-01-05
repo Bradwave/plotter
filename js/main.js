@@ -322,6 +322,13 @@ window.updateParam = (key, field, val) => {
 // ==========================================
 // RENDER ITEMS (New Style: Item Cards)
 // ==========================================
+const COLOR_PALETTE = [
+    "#B01A00", "#d32f2f", "#c2185b", "#7b1fa2", "#512da8", 
+    "#1976d2", "#0288d1", "#0097a7", "#00796b", "#388e3c", 
+    "#689f38", "#afb42b", "#fbc02d", "#ffa000", "#f57c00", 
+    "#e64a19", "#5d4037", "#616161", "#455a64", "#000000"
+];
+
 function renderItems() {
     const list = document.getElementById("items-list"); list.innerHTML = "";
     if (!appState.data) appState.data = [];
@@ -329,58 +336,84 @@ function renderItems() {
         const div = document.createElement("div");
         div.className = "item-card active-type-" + item.type;
         let inputs = "";
+        let typeBadge = "";
         
-        // Minimalist inputs for header part
+        // Define Type Label
+        if(item.type === 'fun') typeBadge = 'fn';
+        else if(item.type === 'point') typeBadge = 'pt';
+        else if(item.type === 'implicit') typeBadge = 'im';
+        else if(item.type === 'xline') typeBadge = 'xL';
+        else typeBadge = item.type;
+
+        // Header Inputs
         if (item.type === "fun") {
-            inputs = `<input type="text" value="${item.fn}" placeholder="x^2" style="flex:1; border:none; background:transparent; font-weight:bold;" onchange="updateItem(${index}, 'fn', this.value)">`;
+            inputs = `<input type="text" value="${item.fn}" placeholder="x^2" class="input-bold" style="flex:1; border:none; background:transparent;" onchange="updateItem(${index}, 'fn', this.value)">`;
         } else if (item.type === "point") {
             const pt = (item.points && item.points[0]) ? item.points[0] : [0,0];
-            inputs = `<div class="inputs-compact" style="flex:1;"><input type="number" value="${pt[0]}" style="width:50px" onchange="updateItemPoint(${index}, 0, this.value)">
-            <span style="color:#ccc">,</span><input type="number" value="${pt[1]}" style="width:50px" onchange="updateItemPoint(${index}, 1, this.value)"></div>`;
+            inputs = `<div class="inputs-compact" style="flex:1;">
+                <input type="number" value="${pt[0]}" class="input-bold" style="width:50px" onchange="updateItemPoint(${index}, 0, this.value)">
+                <span class="input-bold" style="color:#aaa">,</span>
+                <input type="number" value="${pt[1]}" class="input-bold" style="width:50px" onchange="updateItemPoint(${index}, 1, this.value)">
+            </div>`;
         } else if (item.type === "implicit") {
-            inputs = `<input type="text" value="${item.fn || item.implicit}" placeholder="x^2+y^2=1" style="flex:1; border:none;" onchange="updateItem(${index}, 'implicit', this.value)">`;
+            inputs = `<input type="text" value="${item.fn || item.implicit}" placeholder="x^2+y^2=1" class="input-bold" style="flex:1; border:none;" onchange="updateItem(${index}, 'implicit', this.value)">`;
         } else if (item.type === "xline") {
-            inputs = `<div class="inputs-compact" style="flex:1"><span>x=</span><input type="number" value="${item.x}" onchange="updateItem(${index}, 'x', this.value)"></div>`;
+            inputs = `<div class="inputs-compact" style="flex:1; padding-left:4px;">
+                <span class="input-bold">x=</span>
+                <input type="number" value="${item.x}" class="input-bold" style="width:60px" onchange="updateItem(${index}, 'x', this.value)">
+            </div>`;
         }
 
         const detailsId = `details-${index}`;
+        
+        // Color Picker HTML
+        let colorHtml = `<div class="color-picker-row">`;
+        COLOR_PALETTE.forEach(c => {
+            const active = (item.color === c || (!item.color && c==='red')) ? 'active' : '';
+            colorHtml += `<div class="color-swatch ${active}" style="background-color:${c}" onclick="updateItem(${index}, 'color', '${c}')"></div>`;
+        });
+        colorHtml += `</div>`;
+
         const details = `
-            <div id="${detailsId}" class="collapsible-content collapsed" style="border-top:1px solid #f0f0f0; margin-top:8px; padding-top:8px;">
+            <div id="${detailsId}" class="collapsible-content collapsed" style="border-top:1px solid #f0f0f0; margin-top:8px; padding-top:12px;">
                 <div class="control-row mb-1">
-                    <span class="control-label">Width</span>
-                    <input type="number" value="${item.width||2}" style="width:50px" onchange="updateItem(${index}, 'width', this.value)">
-                    <span class="control-label">Dash</span>
-                    <input type="text" value="${item.dash||''}" placeholder="5,5" style="width:60px" onchange="updateItem(${index}, 'dash', this.value)">
+                    <span class="control-label">Line</span>
+                    <div class="inputs-compact">
+                        <input type="number" value="${item.width||2}" placeholder="W" style="width:40px" onchange="updateItem(${index}, 'width', this.value)">
+                        <input type="text" value="${item.dash||''}" placeholder="Dash" style="width:50px" onchange="updateItem(${index}, 'dash', this.value)">
+                    </div>
                 </div>
                 ${item.type==='fun' ? `
                 <div class="control-row mb-1">
-                    <span class="control-label">Dom</span>
+                    <span class="control-label">Domain</span>
                     <div class="inputs-compact">
-                       <input type="number" value="${item.domain?item.domain[0]:''}" placeholder="-Inf" style="width:50px" onchange="updateItemDomain(${index},0,this.value)">
+                       <input type="number" value="${item.domain?item.domain[0]:''}" placeholder="-∞" style="width:40px" onchange="updateItemDomain(${index},0,this.value)">
                        <span style="color:#ccc">..</span>
-                       <input type="number" value="${item.domain?item.domain[1]:''}" placeholder="Inf" style="width:50px" onchange="updateItemDomain(${index},1,this.value)">
+                       <input type="number" value="${item.domain?item.domain[1]:''}" placeholder="+∞" style="width:40px" onchange="updateItemDomain(${index},1,this.value)">
                     </div>
                 </div>`:''}
                 <div class="control-row mb-1">
                    <span class="control-label">Label</span>
                    <input type="text" value="${item.label||''}" placeholder="Aa" onchange="updateItem(${index}, 'label', this.value)">
                 </div>
-                 <div class="control-row mb-1">
-                   <span class="control-label">Color</span>
-                   <input type="text" value="${item.color||'red'}" style="width:60px" onchange="updateItem(${index}, 'color', this.value)">
-                </div>
-                <div class="control-row" style="justify-content:flex-end; margin-top:8px;">
-                   <button class="delete-btn" style="color:#d32f2f; font-size:0.7em" onclick="deleteItem(${index})">DELETE ITEM</button>
+                
+                <div style="margin-top:8px;">
+                    <span class="control-label" style="display:block; margin-bottom:4px;">Color</span>
+                    ${colorHtml}
                 </div>
             </div>`;
         
         div.innerHTML = `
             <div class="item-card-header">
                 <div style="display:flex; align-items:center; gap:8px; width:100%">
-                    <span class="item-type">${item.type.substr(0,3)}</span>
+                    <span class="item-type">${typeBadge}</span>
                     ${inputs}
-                    <button style="padding:2px; width:20px; height:20px; background:none; border:none;" onclick="document.getElementById('${detailsId}').classList.toggle('collapsed')">
-                        <span class="material-symbols-outlined" style="font-size:16px; color:#999">settings</span>
+                    
+                    <button class="btn-icon" title="Settings" onclick="document.getElementById('${detailsId}').classList.toggle('collapsed')">
+                        <span class="material-symbols-outlined" style="font-size:18px">settings</span>
+                    </button>
+                    <button class="btn-icon danger" title="Delete" onclick="deleteItem(${index})">
+                        <span class="material-symbols-outlined" style="font-size:18px">delete</span>
                     </button>
                 </div>
             </div>
