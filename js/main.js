@@ -123,8 +123,12 @@ function loadState() {
         if (stored) {
             const loaded = JSON.parse(stored);
             appState = { ...DEFAULT_STATE, ...loaded };
-            if(loaded.data) appState.data = loaded.data;
-            if(loaded.params) appState.params = loaded.params;
+            if (loaded.data) appState.data = loaded.data;
+            if (loaded.params) appState.params = loaded.params;
+            
+            // Sanitize Width/Height
+            if (appState.width !== null && appState.width <= 0) appState.width = null;
+            if (appState.height !== null && appState.height <= 0) appState.height = null;
         }
     } catch (e) {
         console.warn("Failed to load state", e);
@@ -415,7 +419,11 @@ function bindInput(id, key, isNum = false) {
     el.oninput = (e) => {
         let val = e.target.value;
         if (val === "") val = null;
-        else if (isNum) val = parseFloat(val);
+        else if (isNum) {
+            val = parseFloat(val);
+            // Specific safety for width/height
+            if ((key === 'width' || key === 'height') && val <= 0) val = 50;
+        }
         appState[key] = val; updateJSONEditor(); updatePlot();
     };
 }
