@@ -128,7 +128,7 @@ class MatephisPlot {
 
         // Initialize components
         this._initSVG();
-        if (this.config.params) this._initSliders();
+        if (this.config.params && this.config.showSliders !== false) this._initSliders();
         if (this.config.interactive) {
             this._initControlsOverlay();
             this._initInteractions();
@@ -1429,24 +1429,38 @@ class MatephisPlot {
     }
 
     _drawLegend(items) {
-        const x = this.width - this.padding - 10;
-        const y = this.padding + 10;
-
-        const fs = this._getConfigSize('legendSize');
-
-        // Dynamic width calculation
+        // Default Top-Right
+        let x = this.width - this.padding - 10;
+        let y = this.padding + 10;
+        
+        const pos = this.config.legendPosition || 'top-right';
+        
+        // Width Calc (Pre-calc needed for X positioning)
         let w;
         if (this.config.legendWidth) {
             w = this.config.legendWidth;
         } else {
             let maxLen = 0;
+            const fs = this._getConfigSize('legendSize');
             items.forEach(it => maxLen = Math.max(maxLen, it.label.length));
-            // Approx width: Symbol (30) + Chars * (FontSize * 0.6) + Padding (20)
             w = 30 + (maxLen * (fs * 0.6)) + 20;
-            if (w < 120) w = 120; // Min width
+            if (w < 120) w = 120;
         }
 
-        const h = items.length * (fs * 1.5) + 10; // Dynamic height based on font size
+        const fs = this._getConfigSize('legendSize');
+        const h = items.length * (fs * 1.5) + 10;
+
+        if (pos === 'top-left') {
+            x = this.padding + 10 + w; // rect is drawn x-w, so x must be right edge
+        } else if (pos === 'bottom-right') {
+            x = this.width - this.padding - 10;
+            y = this.height - this.padding - 10 - h;
+        } else if (pos === 'bottom-left') {
+            x = this.padding + 10 + w;
+            y = this.height - this.padding - 10 - h;
+        }
+        // top-right is default (x already set)
+
         const labelWeight = this.config.labelWeight || "normal";
 
         // bg
@@ -1558,12 +1572,12 @@ class MatephisPlot {
         const VALID_ROOT_KEYS = [
             "width", "height", "aspectRatio", "cssWidth", "fullWidth", "align",
             "marginLeft", "marginRight", "border", "sliderBorder",
-            "xlim", "ylim", "interactive", "theme", "legend", "legendWidth",
+            "xlim", "ylim", "interactive", "theme", "legend", "legendWidth", "legendPosition",
             "padding", "grid", "gridOpacity", "axisArrows", "axisLabels",
             "xStep", "yStep", "xStepSecondary", "yStepSecondary", "showSecondaryGrid", "showGrid",
             "xNumberStep", "yNumberStep", "showXNumbers", "showYNumbers",
             "showXTicks", "showYTicks", "secondaryGridOpacity",
-            "sampleStep", "fontSize", "renderOrder", "params", "data", "labelWeight",
+            "sampleStep", "fontSize", "renderOrder", "params", "showSliders", "data", "labelWeight",
             "numberSize", "labelSize", "legendSize"
         ];
 
