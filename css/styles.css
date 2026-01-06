@@ -2,7 +2,7 @@
     /* Palette from Motus/Drawxy/Ftfilter */
     --color-bg: #ffffff;
     --color-bg-panel: #ffffff;
-    --color-bg-track: #ffffff;
+    --color-bg-track: #f8f8f8;
     /* Light grey for main area */
 
     --color-text-main: #1a1a1a;
@@ -216,7 +216,7 @@ header p {
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
-    border-bottom: 2px solid var(--color-bg-track);
+    border-bottom: 2px solid #f2f2f2;
     padding-bottom: 8px;
     margin-bottom: 12px;
     margin-top: 12px;
@@ -225,6 +225,10 @@ header p {
 }
 
 .section-header-collapsible:hover .section-title {
+    color: var(--color-accent);
+}
+
+.section-header-collapsible:hover {
     color: var(--color-accent);
 }
 
@@ -695,6 +699,7 @@ input:checked+.slider:before {
     max-width: 800px;
     max-height: 80vh;
     margin: auto;
+    padding: 5px;
     /* Center it */
 }
 
@@ -791,7 +796,8 @@ input:checked+.slider:before {
 
 /* Parameter UI Refinements */
 .param-step-input {
-    width: 60px !important; /* Larger than before */
+    width: 60px !important;
+    /* Larger than before */
 }
 
 .param-val-display {
@@ -803,18 +809,24 @@ input:checked+.slider:before {
     display: inline-block;
     font-variant-numeric: tabular-nums;
 }
+
 /* SVG Text - Force Font Family */
 .matephis-plot-text {
-  font-family: var(--font-mono, 'Space Mono', monospace) !important;
+    font-family: var(--font-mono, 'Space Mono', monospace) !important;
 }
 
 
 
 /* Force Plot Font */
 .matephis-plot-svg {
-  font-family: var(--font-mono, 'Space Mono', monospace) !important;
+    font-family: var(--font-mono, 'Space Mono', monospace) !important;
 }
 
 /* Force Style Classes */
-.matephis-plot-text.italic { font-style: italic !important; }
-.matephis-plot-text.bold { font-weight: 700 !important; }
+.matephis-plot-text.italic {
+    font-style: italic !important;
+}
+
+.matephis-plot-text.bold {
+    font-weight: 700 !important;
+}
