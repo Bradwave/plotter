@@ -1598,7 +1598,8 @@ class MatephisPlot {
             "xNumberStep", "yNumberStep", "showXNumbers", "showYNumbers",
             "showXTicks", "showYTicks", "secondaryGridOpacity",
             "sampleStep", "fontSize", "renderOrder", "params", "showSliders", "data", "labelWeight",
-            "numberSize", "labelSize", "legendSize"
+            "numberSize", "labelSize", "legendSize",
+            "axisLabelWeight", "axisLabelStyle", "labelStyle"
         ];
 
         const VALID_DATA_KEYS = [

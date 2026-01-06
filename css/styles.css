@@ -803,3 +803,12 @@ input:checked+.slider:before {
     display: inline-block;
     font-variant-numeric: tabular-nums;
 }
+/* SVG Text - Force Font Family */
+.matephis-plot-text {
+  font-family: var(--font-mono, 'Space Mono', monospace) !important;
+}
+
+/* SVG Text - Force Font Family */
+.matephis-plot-text {
+  font-family: var(--font-mono, 'Space Mono', monospace) !important;
+}

@@ -19,6 +19,12 @@ const DEFAULT_STATE = {
     showYNumbers: true,
     showXTicks: false,
     showYTicks: false,
+
+    // Label Styles
+    axisLabelWeight: "bold",
+    axisLabelStyle: "normal",
+    labelWeight: "normal",
+    labelStyle: "normal",
     
     interactive: false,
     gridOpacity: 0.8,
@@ -234,6 +240,12 @@ function cleanStateForLib(state) {
             delete config.axisLabels;
         }
     }
+    
+    // Label Styles
+    if (config.axisLabelWeight === 'bold') delete config.axisLabelWeight;
+    if (config.axisLabelStyle === 'normal') delete config.axisLabelStyle;
+    if (config.labelWeight === 'normal') delete config.labelWeight;
+    if (config.labelStyle === 'normal') delete config.labelStyle;
 
     // Default showSliders is false/undefined in library? 
     // If we want to omit it completely:
@@ -291,6 +303,12 @@ function bindGlobalEvents() {
          if (!appState.axisLabels) appState.axisLabels = ["", ""];
          appState.axisLabels[1] = e.target.value; refresh();
     };
+
+    document.getElementById("g-axis-bold").onchange = (e) => { appState.axisLabelWeight = e.target.checked ? "bold" : "normal"; refresh(); };
+    document.getElementById("g-axis-italic").onchange = (e) => { appState.axisLabelStyle = e.target.checked ? "italic" : "normal"; refresh(); };
+    
+    document.getElementById("g-datalabel-bold").onchange = (e) => { appState.labelWeight = e.target.checked ? "bold" : "normal"; refresh(); };
+    document.getElementById("g-datalabel-italic").onchange = (e) => { appState.labelStyle = e.target.checked ? "italic" : "normal"; refresh(); };
 
     document.getElementById("g-interactive").onchange = (e) => { appState.interactive = e.target.checked; refresh(); };
 
@@ -409,6 +427,11 @@ function syncUIToState(fromJSON = false) {
         document.getElementById("g-ylabel").value = appState.axisLabels[1] || "";
     }
     
+    document.getElementById("g-axis-bold").checked = appState.axisLabelWeight !== "normal"; // default bold matches if undefined (no, default state "bold")
+    document.getElementById("g-axis-italic").checked = appState.axisLabelStyle === "italic";
+    document.getElementById("g-datalabel-bold").checked = appState.labelWeight === "bold";
+    document.getElementById("g-datalabel-italic").checked = appState.labelStyle === "italic";
+
     renderParams();
     renderItems();
     if (!fromJSON) updateJSONEditor();
