@@ -28,6 +28,7 @@ const DEFAULT_STATE = {
     
     interactive: false,
     gridOpacity: 0.8,
+    showSecondaryGrid: true,
     
     // Legend
     legend: false,
@@ -229,6 +230,7 @@ function cleanStateForLib(state) {
     
     if (!config.padding) delete config.padding;
     if (config.gridOpacity === 0.8) delete config.gridOpacity; 
+    if (config.showSecondaryGrid !== false) delete config.showSecondaryGrid; // Default true
     
     if (config.showXNumbers === true) delete config.showXNumbers;
     if (config.showYNumbers === true) delete config.showYNumbers;
@@ -315,6 +317,10 @@ function bindGlobalEvents() {
         appState.showGrid = e.target.checked; refresh();
     };
     
+    document.getElementById("g-secondary-grid").onchange = (e) => {
+        appState.showSecondaryGrid = e.target.checked; refresh();
+    };
+
     document.getElementById("g-theme").onchange = (e) => { appState.theme = e.target.value; refresh(); };
     document.getElementById("refresh-btn").onclick = () => updatePlot();
     
@@ -417,6 +423,7 @@ function syncUIToState(fromJSON = false) {
 
     document.getElementById("g-interactive").checked = appState.interactive !== false;
     document.getElementById("g-grid").checked = appState.grid !== false;
+    document.getElementById("g-secondary-grid").checked = appState.showSecondaryGrid !== false;
     document.getElementById("g-theme").value = appState.theme || 'default';
     
     if (appState.axisLabels && Array.isArray(appState.axisLabels)) {

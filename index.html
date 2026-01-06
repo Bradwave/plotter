@@ -102,8 +102,10 @@
                     <div class="component-row">
                         <div class="control-row">
                             <span class="control-label">Show Grid</span>
-                            <label class="toggle-switch"><input type="checkbox" id="g-grid"><span
-                                    class="slider"></span></label>
+                            <div class="inputs-compact">
+                                <label class="toggle-switch"><input type="checkbox" id="g-grid"><span class="slider"></span></label>
+                                <label style="font-size:0.9em; margin-left:10px;"><input type="checkbox" id="g-secondary-grid"> Secondary</label>
+                            </div>
                         </div>
                     </div>
 
@@ -139,17 +141,19 @@
                         <div class="control-row" style="margin-top:8px;">
                             <span class="control-label" style="font-size:0.9em">Axis Style</span>
                             <div class="inputs-compact">
+                                <input type="number" id="g-axis-offset" placeholder="Offset" class="input-md" title="Label Offset">
                                 <label style="font-size:0.9em"><input type="checkbox" id="g-axis-bold"> Bold</label>
                                 <label style="font-size:0.9em"><input type="checkbox" id="g-axis-italic"> Italic</label>
-                                <input type="number" id="g-axis-offset" placeholder="Offset" class="input-sm" style="width:50px !important" title="Label Offset">
                             </div>
 
                         </div>
                         <div class="control-row" style="margin-top:4px;">
                             <span class="control-label" style="font-size:0.9em">Data Style</span>
                             <div class="inputs-compact">
-                                <label style="font-size:0.9em"><input type="checkbox" id="g-datalabel-bold"> Bold</label>
-                                <label style="font-size:0.9em"><input type="checkbox" id="g-datalabel-italic"> Italic</label>
+                                <label style="font-size:0.9em"><input type="checkbox" id="g-datalabel-bold">
+                                    Bold</label>
+                                <label style="font-size:0.9em"><input type="checkbox" id="g-datalabel-italic">
+                                    Italic</label>
                             </div>
                         </div>
                     </div>
