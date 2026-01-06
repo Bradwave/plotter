@@ -235,11 +235,7 @@ function cleanStateForLib(state) {
     if (config.showXTicks === false) delete config.showXTicks;
     if (config.showYTicks === false) delete config.showYTicks;
 
-    if (config.axisLabels && Array.isArray(config.axisLabels)) {
-        if (config.axisLabels[0] === 'x' && config.axisLabels[1] === 'y') {
-            delete config.axisLabels;
-        }
-    }
+
     
     // Label Styles
     if (config.axisLabelWeight === 'bold') delete config.axisLabelWeight;
@@ -306,6 +302,7 @@ function bindGlobalEvents() {
 
     document.getElementById("g-axis-bold").onchange = (e) => { appState.axisLabelWeight = e.target.checked ? "bold" : "normal"; refresh(); };
     document.getElementById("g-axis-italic").onchange = (e) => { appState.axisLabelStyle = e.target.checked ? "italic" : "normal"; refresh(); };
+    bindInput("g-axis-offset", "axisLabelOffset", true);
     
     document.getElementById("g-datalabel-bold").onchange = (e) => { appState.labelWeight = e.target.checked ? "bold" : "normal"; refresh(); };
     document.getElementById("g-datalabel-italic").onchange = (e) => { appState.labelStyle = e.target.checked ? "italic" : "normal"; refresh(); };

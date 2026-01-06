@@ -808,7 +808,13 @@ input:checked+.slider:before {
   font-family: var(--font-mono, 'Space Mono', monospace) !important;
 }
 
-/* SVG Text - Force Font Family */
-.matephis-plot-text {
+
+
+/* Force Plot Font */
+.matephis-plot-svg {
   font-family: var(--font-mono, 'Space Mono', monospace) !important;
 }
+
+/* Force Style Classes */
+.matephis-plot-text.italic { font-style: italic !important; }
+.matephis-plot-text.bold { font-weight: 700 !important; }
