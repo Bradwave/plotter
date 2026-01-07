@@ -1,0 +1,327 @@
+/* Matephis Plot Styling */
+
+/* Container */
+.matephis-plot-container {
+  display: flex;
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  /* Explicit default cursor to stop inheritance */
+
+  flex-direction: column;
+  align-items: center;
+  margin: auto !important; /* Force centering in Plotter flex container */
+  max-width: 70%;
+  width: 100%;
+}
+
+.matephis-plot-container.bordered {
+  border: 1px solid var(--border-color, #e1e1e1);
+}
+
+/* Modifiers */
+.matephis-plot-container.align-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.matephis-plot-container.align-left {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+/* Stage */
+.matephis-plot-stage {
+  position: relative;
+  width: 100%;
+}
+
+/* SVG */
+.matephis-plot-svg {
+  background: var(--bg, #fff);
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  font-family: var(--font-plot, monospace);
+  display: block;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Fix for mobile pinch: ensure touches pass through lines/text to the SVG handler */
+.matephis-plot-svg * {
+  pointer-events: none;
+}
+
+.matephis-plot-svg.interactive {
+  cursor: default;
+}
+
+.matephis-plot-svg.static {
+  cursor: zoom-in;
+}
+
+/* Error */
+.matephis-plot-error {
+  color: red;
+  border: 1px solid red;
+  padding: 5px;
+}
+
+/* Controls (Sliders) */
+.matephis-plot-controls:empty {
+  display: none;
+}
+
+.matephis-plot-controls {
+  width: 100%;
+  max-width: 600px;
+  padding: 12px 16px;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.matephis-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-plot, monospace);
+  font-size: 0.85rem;
+}
+
+.matephis-slider-row.slider-bordered {
+  border: 1px solid var(--border-color, #e1e1e1);
+  padding: 6px 0px 6px 12px;
+  margin-bottom: 4px;
+}
+
+.matephis-slider-label-group {
+  min-width: 80px;
+  white-space: nowrap;
+  text-align: left;
+  display: flex;
+  align-items: center;
+}
+
+.matephis-slider-label {
+  font-weight: bold;
+}
+
+.matephis-slider-val {
+  min-width: 4ch;
+  text-align: left;
+  color: var(--accent, #B01A00);
+  font-weight: bold;
+  margin-left: 8px;
+}
+
+.matephis-slider-min,
+.matephis-slider-max {
+  font-size: 0.8em;
+  color: #999;
+  min-width: 40px;
+  display: inline-block;
+}
+
+.matephis-slider-min {
+  margin-right: 8px;
+  text-align: right;
+}
+
+.matephis-slider-max {
+  margin-left: 8px;
+  text-align: left;
+}
+
+.matephis-slider-row input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex-grow: 1;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  outline: none;
+  cursor: default;
+}
+
+.matephis-slider-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 6px;
+  height: 6px;
+  background: var(--accent, #B01A00);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgba(176, 26, 0, 0.2);
+  cursor: default;
+  transition: all 0.1s ease-in-out;
+  margin-top: 0;
+}
+
+.matephis-slider-row input[type=range]::-webkit-slider-thumb:hover {
+  outline: 6px solid #b01a00;
+}
+
+.matephis-slider-row input[type=range]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent, #B01A00);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.matephis-slider-row input[type=range]::-moz-range-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Toolbar (Below Plot) */
+.matephis-plot-toolbar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  z-index: 10;
+  cursor: default;
+  
+  /* Fixed - Bottom Center of Canvas Area */
+  position: fixed;
+  top: auto;
+  right: 0;
+  bottom: 30px;
+  left: 450px; /* Offset for sidebar width */
+  transform: none;
+  
+  background: transparent; /* Remove background from container */
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  pointer-events: none; /* Let clicks pass through wrapper */
+}
+
+/* Style the buttons (or inner wrapper if it existed, but here we target buttons directly to add pointer events back? 
+   Actually, the toolbar contains buttons. We need a visible pill background? 
+   No, let's keep the pill background on the toolbar itself, but restrict its width. */
+
+.matephis-plot-toolbar {
+    /* Re-apply flex centering properties to container */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* Background for the pill */
+    /* Use a pseudo-element or wrap content? 
+       Actually, simply setting width: fit-content and centering via margin/left/right 
+       is harder with fixed positioning relative to a specific area.
+       element is fixed. left: 450px, right: 0. 
+       This stretches the container across the canvas area.
+       Then justify-content: center puts content in middle.
+    */
+    width: auto;
+    pointer-events: none;
+}
+
+/* We need a wrapper for the buttons to have the background pill */
+/* Since we can't change HTML structure easily, and toolbar contains buttons directly...
+   We can style the toolbar as the full-width strip (invisible) 
+   and rely on buttons having their own style? 
+   Or, we can make the toolbar inline-block centered?
+   
+   Better: Left: 450px + 50% width of canvas area.
+   Center X = 450px + (Width - 450px)/2 = (Width + 450px)/2.
+   left: calc(50% + 225px);
+   transform: translateX(-50%);
+   
+   Then we can keep the background on the toolbar itself.
+*/
+
+.matephis-plot-toolbar {
+  position: fixed;
+  top: auto;
+  bottom: 30px;
+  left: calc(50% + 225px); /* Center of the canvas area */
+  right: auto;
+  transform: translateX(-50%);
+  
+  width: auto;
+  z-index: 100;
+  
+  background: rgba(255, 255, 255, 0.9);
+  padding: 6px 12px;
+  border-radius: 99px;
+  border: 1px solid rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  pointer-events: auto;
+}
+
+.matephis-plot-btn {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.matephis-plot-btn:hover {
+  background: #e0e0e0;
+}
+
+.matephis-plot-btn:active {
+  background: #d0d0d0;
+}
+
+.matephis-plot-btn img {
+  opacity: 0.6;
+  pointer-events: none;
+  /* Let clicks pass to button */
+}
+
+.matephis-plot-btn:hover img {
+  opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+  .matephis-plot-container {
+    max-width: 90%;
+    width: 90%;
+  }
+}
+
+.matephis-plot-container.interactive {
+  touch-action: none;
+}
+
+/* SVG Text - Force Font Family */
+.matephis-plot-text {
+  font-family: var(--font-plot, 'Space Mono', monospace) !important;
+}
+
+/* Captions for plots */
+.matephis-plot + pre + p:has(> em:only-child) {
+  text-align: left;
+  font-size: 0.85rem;
+  color: #888;
+  font-family: var(--font);
+  font-style: normal;
+  margin-top: var(--space-xs);
+  margin-bottom: var(--space-lg);
+  margin-left: var(--space-sm);
+  margin-right: var(--space-sm);
+}
+
+.matephis-plot:has(.matephis-plot-container.align-center)+pre+p:has(> em:only-child) {
+  text-align: center;
+  padding: 0 var(--space-lg) 0 var(--space-lg);
+}

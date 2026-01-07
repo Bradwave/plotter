@@ -10,7 +10,27 @@
 
 // Auto-initialize on DOM ready (browser environment only)
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    document.addEventListener("DOMContentLoaded", () => MatephisPlot.init());
+    document.addEventListener("DOMContentLoaded", () => {
+        // If MathJax is expected, wait for it
+        if (document.getElementById('MathJax-script')) {
+            const checkMathJax = () => {
+                if (window.MathJax && (window.MathJax.tex2svg || (window.MathJax.startup && window.MathJax.startup.promise))) {
+                    // If promise exists, use it to be safe
+                    if (window.MathJax.startup && window.MathJax.startup.promise) {
+                        window.MathJax.startup.promise.then(() => MatephisPlot.init());
+                    } else {
+                        MatephisPlot.init();
+                    }
+                } else {
+                    // Poll again shortly
+                    setTimeout(checkMathJax, 50);
+                }
+            };
+            checkMathJax();
+        } else {
+            MatephisPlot.init();
+        }
+    });
 }
 
 class MatephisPlot {
@@ -39,14 +59,17 @@ class MatephisPlot {
 
         // Process markdown code blocks with language-matephis
         document.querySelectorAll('code.language-matephis').forEach(code => {
+            let container;
+            let target;
             try {
-                const source = code.textContent;
-                let target = code.closest('div.language-matephis') || code.closest('pre');
+                target = code.closest('div.language-matephis') || code.closest('pre');
                 if (!target) target = code.parentElement;
                 if (target.getAttribute('data-processed')) return;
 
-                const container = document.createElement('div');
+                const source = code.textContent;
+                container = document.createElement('div');
                 container.className = 'matephis-plot';
+                
                 target.parentNode.insertBefore(container, target);
                 target.style.display = 'none';
 
@@ -54,6 +77,13 @@ class MatephisPlot {
                 target.setAttribute('data-processed', 'true');
             } catch (e) {
                 console.error("Code Block Plot Error", e);
+                if (container) {
+                    container.innerHTML = `<div style="color:red; border:1px solid red; padding:5px;">Error: ${e.message}</div>`;
+                } else if (target) {
+                     const errorDiv = document.createElement('div');
+                     errorDiv.innerHTML = `<div style="color:red; border:1px solid red; padding:5px;">Error: ${e.message}</div>`;
+                     target.parentNode.insertBefore(errorDiv, target);
+                }
             }
         });
     }
@@ -109,6 +139,13 @@ class MatephisPlot {
         if (this.config.align === 'center') this.wrapper.classList.add('align-center');
         else if (this.config.align === 'left') this.wrapper.classList.add('align-left');
 
+        // Apply margins
+        if (this.config.marginBottom) {
+            this.wrapper.style.marginBottom = typeof this.config.marginBottom === 'number' 
+                ? `${this.config.marginBottom}px` 
+                : this.config.marginBottom;
+        }
+
         // Define color palettes
         this.palettes = {
             black: ["#000000", "#444444", "#6e6e6e", "#929292", "#b6b6b6", "#dadada"],
@@ -128,11 +165,11 @@ class MatephisPlot {
 
         // Initialize components
         this._initSVG();
-        if (this.config.params && this.config.showSliders === true) this._initSliders();
         if (this.config.interactive) {
             this._initControlsOverlay();
             this._initInteractions();
         }
+        if (this.config.params && this.config.showSliders !== false) this._initSliders();
 
         // Warning System
         this.warnings = [];
@@ -142,8 +179,10 @@ class MatephisPlot {
         this.draw();
         this._renderWarnings();
 
-        // Lightbox on click
-        this.svg.onclick = () => this._openLightbox();
+        // Lightbox on click (Only for static plots)
+        if (!this.config.interactive) {
+            this.svg.onclick = () => this._openLightbox();
+        }
 
         // Responsive resizing
         this._initResizeObserver();
@@ -166,6 +205,7 @@ class MatephisPlot {
             else targetWidth = (window.innerWidth && window.innerWidth > 0) ? window.innerWidth : 1000;
         }
         this.width = Math.max(50, targetWidth); // Safe min width
+
         // Calculate height based on aspect ratio
         if (this.config.aspectRatio) {
             let ratio = 1;
@@ -193,6 +233,7 @@ class MatephisPlot {
 
         const ns = "http://www.w3.org/2000/svg";
         this.svg = document.createElementNS(ns, "svg");
+        this.svg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
         this.svg.setAttribute("width", this.width);
         this.svg.setAttribute("height", this.height);
         this.svg.setAttribute("viewBox", `0 0 ${this.width} ${this.height}`);
@@ -201,9 +242,9 @@ class MatephisPlot {
         else this.svg.classList.add('static');
 
         // this.svg.style.aspectRatio = ... removed to prevent issues, handled by attributes
-        
+
         // Inline Font for Serialized usage (Lightbox)
-        this.svg.style.fontFamily = "var(--font-code, monospace)";
+        this.svg.style.fontFamily = "var(--font-plot, monospace)";
 
         // Groups
         this.bgGroup = document.createElementNS(ns, "g");
@@ -334,12 +375,19 @@ class MatephisPlot {
      */
     _initControlsOverlay() {
         const overlay = document.createElement("div");
-        overlay.className = "matephis-plot-overlay";
+        overlay.className = "matephis-plot-toolbar"; // Renamed class for new styling logic
 
-        const mkBtn = (txt, cb) => {
+        const mkBtn = (iconPath, title, cb) => {
             const b = document.createElement("button");
-            b.innerText = txt;
             b.className = "matephis-plot-btn";
+            b.title = title;
+            const img = document.createElement("img");
+            img.src = iconPath;
+            img.style.width = "20px";
+            img.style.height = "20px";
+            img.draggable = false;
+            b.appendChild(img);
+
             b.onclick = (e) => {
                 e.stopPropagation(); // Prevent plot click
                 cb();
@@ -364,10 +412,9 @@ class MatephisPlot {
             this.draw();
         };
 
-        const btnPlus = mkBtn("+", () => zoom(0.9)); // Zoom In = smaller range (10%)
-        const btnMinus = mkBtn("-", () => zoom(1.1)); // Zoom Out = larger range (10%)
-
-        const btnReset = mkBtn("↺", () => {
+        const btnPlus = mkBtn("assets/img/add.svg", "Zoom In", () => zoom(0.9));
+        const btnMinus = mkBtn("assets/img/remove.svg", "Zoom Out", () => zoom(1.1));
+        const btnReset = mkBtn("assets/img/center_focus_weak.svg", "Reset View", () => {
             if (this.config.xlim) {
                 this.view.xMin = this.config.xlim[0];
                 this.view.xMax = this.config.xlim[1];
@@ -379,13 +426,18 @@ class MatephisPlot {
             } else { this.view.yMin = -9.9; this.view.yMax = 9.9; }
             this.draw();
         });
-        btnReset.title = "Reset View";
+
+        const btnFull = mkBtn("assets/img/open_in_full.svg", "Full Screen", () => this._openLightbox());
 
         overlay.appendChild(btnPlus);
         overlay.appendChild(btnMinus);
         overlay.appendChild(btnReset);
+        overlay.appendChild(btnFull);
 
-        this.plotStage.appendChild(overlay);
+        // Place OUTSIDE the plot stage (SVG), below it.
+        // If sliders exist, place before them? Or after? user said "below the plot".
+        // Appending to wrapper puts it after plotStage.
+        this.wrapper.appendChild(overlay);
     }
 
     // =========================================================================
@@ -398,7 +450,7 @@ class MatephisPlot {
      */
     _initResizeObserver() {
         if (!window.ResizeObserver) return;
-        
+
         this.resizeObserver = new ResizeObserver(entries => {
             for (let entry of entries) {
                 const newW = entry.contentRect.width;
@@ -502,9 +554,7 @@ class MatephisPlot {
         svg.onpointerup = (e) => {
             this.interactions.isDragging = false;
             svg.releasePointerCapture(e.pointerId);
-            if (!this.interactions.hasMoved && !isPinching) {
-                this._openLightbox();
-            }
+            // Removed automatic lightbox on click for interactive plots
         };
 
         // Wheel Zoom
@@ -720,7 +770,16 @@ class MatephisPlot {
      */
     _makeFn(str) {
         let expr = str;
-        
+
+        // 1. Implicit Multiplication for Parameters (e.g., "ax" -> "a*x")
+        // Must be done BEFORE parameter value substitution
+        for (let key in this.params) {
+            // Param followed by variable (x/y/t) or open parenthesis
+            // Lookbehind support in JS is good, but simple regex is safer: capture key, then lookahead
+            const re = new RegExp(`(?<![a-zA-Z0-9])(${key})(?=[xyt\\(])`, 'g');
+            expr = expr.replace(re, "$1*");
+        }
+
         // Replace parameters with their values
         for (let key in this.params) {
             const re = new RegExp(`\\b${key}\\b`, 'g');
@@ -739,13 +798,31 @@ class MatephisPlot {
         expr = expr.replace(/\b(sin|cos|tan|asin|acos|atan|sqrt|log|exp|abs|floor|ceil|round)\b/g, "Math.$1");
         expr = expr.replace(/\b(pi|PI)\b/g, "Math.PI");
         expr = expr.replace(/\b(e|E)\b/g, "Math.E");
-        
+
         // Convert implicit equations (e.g., "x^2 + y^2 = 1")
         if (expr.includes("=")) {
             const parts = expr.split("=");
             expr = `(${parts[0]}) - (${parts[1]})`;
         }
         return expr;
+    }
+
+    /**
+     * Safely evaluates a math expression or returns the number.
+     * @private
+     */
+    _eval(val, context = "value") {
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string') {
+            try {
+                const fn = new Function(`return ${this._makeFn(val)}`);
+                return fn();
+            } catch (e) {
+                console.warn(`Error evaluating ${context}: ${val}`, e);
+                return NaN;
+            }
+        }
+        return NaN;
     }
 
     draw() {
@@ -810,6 +887,11 @@ class MatephisPlot {
         // --- 1. Background ---
         const ns = "http://www.w3.org/2000/svg";
         const rect = document.createElementNS(ns, "rect");
+        // Previous config
+        // rect.setAttribute("x", this.padding);
+        // rect.setAttribute("y", this.padding);
+        // rect.setAttribute("width", this.width - 2 * this.padding);
+        // rect.setAttribute("height", this.height - 2 * this.padding);
         rect.setAttribute("x", 0);
         rect.setAttribute("y", 0);
         rect.setAttribute("width", this.width);
@@ -1124,7 +1206,11 @@ class MatephisPlot {
             // Label Position Init
             let labelPos = null;
             if (item.labelAt) {
-                labelPos = { x: mapX(item.labelAt[0]), y: mapY(item.labelAt[1]) };
+                const lx = this._eval(item.labelAt[0], "labelAt x");
+                const ly = this._eval(item.labelAt[1], "labelAt y");
+                if (!isNaN(lx) && !isNaN(ly)) {
+                    labelPos = { x: mapX(lx), y: mapY(ly) };
+                }
             }
 
             if (item.label && this.config.legend) {
@@ -1135,193 +1221,202 @@ class MatephisPlot {
             // Function (Adaptive Sampling)
             if (item.fn) {
                 try {
-                let d = "";
-                let started = false;
-                const f = new Function("x", `return ${this._makeFn(item.fn)};`);
-                // Test call to catch syntax errors early
-                try { f(0); } catch(e) { throw new Error(`Function '${item.fn}' error: ${e.message}`); }
-
-                // Adaptive State
-                const MAX_DEPTH = 8;
-                const TOLERANCE = 0.2; // Tighter tolerance for smoother curves
-
-                const safeMapY = (y) => {
-                    const py = mapY(y);
-                    if (py < -10000) return -10000;
-                    if (py > 10000) return 10000;
-                    return py;
-                };
-
-                // Helper to check validity (finite + domain)
-                const isValid = (x, y) => {
-                    if (!isFinite(y)) return false;
-                    if (item.domain && (x < item.domain[0] || x > item.domain[1])) return false;
-                    return true;
-                };
-
-                const plotSegment = (x1, y1, x2, y2, depth) => {
-                    const xm = (x1 + x2) / 2;
-                    let ym;
-                    try { ym = f(xm); } catch (e) { ym = NaN; }
-
-                    const p1X = mapX(x1), p1Y = safeMapY(y1);
-                    const p2X = mapX(x2), p2Y = safeMapY(y2);
-                    const pmX = mapX(xm), pmY = safeMapY(ym);
-
-                    const v1 = isValid(x1, y1);
-                    const v2 = isValid(x2, y2);
-                    const vm = isValid(xm, ym);
-
-                    // A. Recursion Criteria
-                    if (depth < MAX_DEPTH) {
-                        let split = false;
-
-                        // 1. Edge Hunting (One valid, one invalid)
-                        if (v1 !== v2) split = true;
-
-                        // 2. Hole / Singularity Hunting (Both valid, mid invalid) - e.g. sin(x)/x at 0
-                        else if (v1 && v2 && !vm) split = true;
-
-                        // 3. Valid Midpoint Checks
-                        else if (v1 && v2 && vm) {
-                            // Curvature / Linearity Check
-                            const linY = p1Y + (p2Y - p1Y) * 0.5;
-                            const error = Math.abs(pmY - linY);
-                            if (error > TOLERANCE) split = true;
-
-                            // Steep Slope / Asymptote Check
-                            // If dY is huge, subdivide to find the jump
-                            if (Math.abs(p2Y - p1Y) > this.height) split = true;
-                        }
-                        // 4. Invalid Midpoint but maybe valid edge? (vm false, v1/v2 false) -> Usually skip, 
-                        // but if we are "hunting" from coarse loop, we might have v1=false, v2=false, vm=TRUE.
-                        // This case is handled by top-level call. Inside recursion, if v1/v2 false, we often stop unless vm is true?
-                        // Actually if v1/v2 false and vm true, split!
-                        else if (!v1 && !v2 && vm) split = true;
-
-                        if (split) {
-                            plotSegment(x1, y1, xm, ym, depth + 1);
-                            plotSegment(xm, ym, x2, y2, depth + 1);
-                            return;
+                    let domain = null;
+                    if (item.domain && Array.isArray(item.domain)) {
+                        const dMin = this._eval(item.domain[0], "domain min");
+                        const dMax = this._eval(item.domain[1], "domain max");
+                        if (!isNaN(dMin) && !isNaN(dMax)) {
+                            domain = [dMin, dMax];
                         }
                     }
 
-                    // B. Base Case - Draw or Move
+                    let d = "";
+                    let started = false;
+                    const f = new Function("x", `return ${this._makeFn(item.fn)};`);
+                    // Test call to catch syntax errors early
+                    try { f(0); } catch (e) { throw new Error(`Function '${item.fn}' error: ${e.message}`); }
 
-                    // Case 1: Both endpoints valid -> Draw Line (unless asymptote break)
-                    if (v1 && v2) {
-                        const jump = Math.abs(p2Y - p1Y);
-                        // Asymptote Break: Huge jump AND opposite signs relative to viewport center (heuristic)? 
-                        // Or just huge jump. For 1/x, jump is Infinity. Clampped to 20000.
-                        // For tan(x), jump is also huge.
-                        // We connect if jump is reasonable.
+                    // Adaptive State
+                    const MAX_DEPTH = 8;
+                    const TOLERANCE = 0.2; // Tighter tolerance for smoother curves
 
-                        // Heuristic: If jump > 2 * Height, assume asymptote and break.
-                        // EXCEPT if "Bridging" a hole? No, if we are here (v1 && v2), we just bridged the hole 
-                        // by recursion (midpoint became valid or we reached max depth).
-                        // Wait, if we reached max depth and mid was invalid, we are NOT in (v1 && v2) branch?
-                        // Correct. This branch is for "we found a valid segment". 
+                    const safeMapY = (y) => {
+                        const py = mapY(y);
+                        if (py < -10000) return -10000;
+                        if (py > 10000) return 10000;
+                        return py;
+                    };
 
-                        if (jump < this.height * 2) {
-                            if (!started) { d += `M ${p1X} ${p1Y}`; started = true; }
-                            d += ` L ${p2X} ${p2Y}`;
-                            if (!item.labelAt) labelPos = { x: p2X, y: p2Y };
-                        } else {
-                            // Break
-                            started = false;
-                        }
-                    }
+                    // Helper to check validity (finite + domain)
+                    const isValid = (x, y) => {
+                        if (!isFinite(y)) return false;
+                        if (domain && (x < domain[0] || x > domain[1])) return false;
+                        return true;
+                    };
 
-                    // Case 2: Bridging a Hole (Removable Discontinuity)
-                    // We reached MAX_DEPTH. v1 is valid, v2 is valid, but we couldn't resolve the middle.
-                    // This happens for sin(x)/x at 0 (undefined at 0).
-                    // x1 is -epsilon, x2 is +epsilon.
-                    else if (v1 && v2 && !vm) {
-                        // Check continuity
-                        const jump = Math.abs(p2Y - p1Y);
-                        if (jump < 50) { // arbitrary small threshold for visual continuity
-                            // Bridge it!
-                            if (!started) { d += `M ${p1X} ${p1Y}`; started = true; }
-                            d += ` L ${p2X} ${p2Y}`;
-                            if (!item.labelAt) labelPos = { x: p2X, y: p2Y };
-                        } else {
-                            started = false;
-                        }
-                    }
-                    else {
-                        started = false;
-                    }
-                };
+                    const plotSegment = (x1, y1, x2, y2, depth) => {
+                        const xm = (x1 + x2) / 2;
+                        let ym;
+                        try { ym = f(xm); } catch (e) { ym = NaN; }
 
-                // Initial Coarse Steps with Domain Edge Handling
-                let rMin = xMin, rMax = xMax;
-                if (item.domain) {
-                    rMin = Math.max(rMin, item.domain[0]);
-                    rMax = Math.min(rMax, item.domain[1]);
-                }
+                        const p1X = mapX(x1), p1Y = safeMapY(y1);
+                        const p2X = mapX(x2), p2Y = safeMapY(y2);
+                        const pmX = mapX(xm), pmY = safeMapY(ym);
 
-                // Eval Edge Helper
-                const evalEdge = (x, isMin, isMax) => {
-                    let val;
-                    try { val = f(x); } catch (e) { }
-                    if (isFinite(val)) return val;
-                    const eps = 1e-6;
-                    if (isMin) { try { val = f(x + eps); } catch (e) { } }
-                    if (isMax) { try { val = f(x - eps); } catch (e) { } }
-                    return val;
-                };
+                        const v1 = isValid(x1, y1);
+                        const v2 = isValid(x2, y2);
+                        const vm = isValid(xm, ym);
 
-                if (rMin < rMax) {
-                    // Configurable Sampling Step (pixels)
-                    // Default to 2px for better quality (was 5px)
-                    const sampleStep = this.config.sampleStep || 2;
-                    const coarseSteps = this.width / sampleStep;
-                    const dx = (xMax - xMin) / coarseSteps;
-                    let curr = rMin;
+                        // A. Recursion Criteria
+                        if (depth < MAX_DEPTH) {
+                            let split = false;
 
-                    while (curr < rMax - 1e-9) {
-                        let next = curr + dx;
-                        if (next > rMax) next = rMax;
-                        // Avoid tiny last step
-                        if (Math.abs(next - rMax) < 1e-9) next = rMax;
+                            // 1. Edge Hunting (One valid, one invalid)
+                            if (v1 !== v2) split = true;
 
-                        const isDomainMin = item.domain && (Math.abs(curr - item.domain[0]) < 1e-9);
-                        let yStart = evalEdge(curr, isDomainMin, false);
+                            // 2. Hole / Singularity Hunting (Both valid, mid invalid) - e.g. sin(x)/x at 0
+                            else if (v1 && v2 && !vm) split = true;
 
-                        const isDomainMax = item.domain && (Math.abs(next - item.domain[1]) < 1e-9);
-                        let yEnd = evalEdge(next, false, isDomainMax);
+                            // 3. Valid Midpoint Checks
+                            else if (v1 && v2 && vm) {
+                                // Curvature / Linearity Check
+                                const linY = p1Y + (p2Y - p1Y) * 0.5;
+                                const error = Math.abs(pmY - linY);
+                                if (error > TOLERANCE) split = true;
 
-                        let yMid;
-                        const xMid = (curr + next) / 2;
-                        try { yMid = f(xMid); } catch (e) { }
-
-                        const v1 = isValid(curr, yStart);
-                        const v2 = isValid(next, yEnd);
-                        const vm = isValid(xMid, yMid);
-
-                        if (v1 || v2 || vm) {
-                            if (v1 && !started) {
-                                const pSX = mapX(curr);
-                                const pSY = safeMapY(yStart);
-                                d += `M ${pSX} ${pSY}`;
-                                started = true;
+                                // Steep Slope / Asymptote Check
+                                // If dY is huge, subdivide to find the jump
+                                if (Math.abs(p2Y - p1Y) > this.height) split = true;
                             }
-                            plotSegment(curr, yStart, next, yEnd, 0);
-                        } else {
+                            // 4. Invalid Midpoint but maybe valid edge? (vm false, v1/v2 false) -> Usually skip, 
+                            // but if we are "hunting" from coarse loop, we might have v1=false, v2=false, vm=TRUE.
+                            // This case is handled by top-level call. Inside recursion, if v1/v2 false, we often stop unless vm is true?
+                            // Actually if v1/v2 false and vm true, split!
+                            else if (!v1 && !v2 && vm) split = true;
+
+                            if (split) {
+                                plotSegment(x1, y1, xm, ym, depth + 1);
+                                plotSegment(xm, ym, x2, y2, depth + 1);
+                                return;
+                            }
+                        }
+
+                        // B. Base Case - Draw or Move
+
+                        // Case 1: Both endpoints valid -> Draw Line (unless asymptote break)
+                        if (v1 && v2) {
+                            const jump = Math.abs(p2Y - p1Y);
+                            // Asymptote Break: Huge jump AND opposite signs relative to viewport center (heuristic)? 
+                            // Or just huge jump. For 1/x, jump is Infinity. Clampped to 20000.
+                            // For tan(x), jump is also huge.
+                            // We connect if jump is reasonable.
+
+                            // Heuristic: If jump > 2 * Height, assume asymptote and break.
+                            // EXCEPT if "Bridging" a hole? No, if we are here (v1 && v2), we just bridged the hole 
+                            // by recursion (midpoint became valid or we reached max depth).
+                            // Wait, if we reached max depth and mid was invalid, we are NOT in (v1 && v2) branch?
+                            // Correct. This branch is for "we found a valid segment". 
+
+                            if (jump < this.height * 2) {
+                                if (!started) { d += `M ${p1X} ${p1Y}`; started = true; }
+                                d += ` L ${p2X} ${p2Y}`;
+                                if (!item.labelAt) labelPos = { x: p2X, y: p2Y };
+                            } else {
+                                // Break
+                                started = false;
+                            }
+                        }
+
+                        // Case 2: Bridging a Hole (Removable Discontinuity)
+                        // We reached MAX_DEPTH. v1 is valid, v2 is valid, but we couldn't resolve the middle.
+                        // This happens for sin(x)/x at 0 (undefined at 0).
+                        // x1 is -epsilon, x2 is +epsilon.
+                        else if (v1 && v2 && !vm) {
+                            // Check continuity
+                            const jump = Math.abs(p2Y - p1Y);
+                            if (jump < 50) { // arbitrary small threshold for visual continuity
+                                // Bridge it!
+                                if (!started) { d += `M ${p1X} ${p1Y}`; started = true; }
+                                d += ` L ${p2X} ${p2Y}`;
+                                if (!item.labelAt) labelPos = { x: p2X, y: p2Y };
+                            } else {
+                                started = false;
+                            }
+                        }
+                        else {
                             started = false;
                         }
-                        curr = next;
-                    }
-                }
+                    };
 
-                const path = document.createElementNS(ns, "path");
-                path.setAttribute("d", d);
-                path.setAttribute("fill", "none");
-                path.setAttribute("stroke", color);
-                path.setAttribute("stroke-width", width);
-                if (dash) path.setAttribute("stroke-dasharray", dash);
-                if (item.opacity !== undefined) path.setAttribute("opacity", item.opacity);
-                this.dataGroup.appendChild(path);
+                    // Initial Coarse Steps with Domain Edge Handling
+                    let rMin = xMin, rMax = xMax;
+                    if (domain) {
+                        rMin = Math.max(rMin, domain[0]);
+                        rMax = Math.min(rMax, domain[1]);
+                    }
+
+                    // Eval Edge Helper
+                    const evalEdge = (x, isMin, isMax) => {
+                        let val;
+                        try { val = f(x); } catch (e) { }
+                        if (isFinite(val)) return val;
+                        const eps = 1e-6;
+                        if (isMin) { try { val = f(x + eps); } catch (e) { } }
+                        if (isMax) { try { val = f(x - eps); } catch (e) { } }
+                        return val;
+                    };
+
+                    if (rMin < rMax) {
+                        // Configurable Sampling Step (pixels)
+                        // Default to 2px for better quality (was 5px)
+                        const sampleStep = this.config.sampleStep || 2;
+                        const coarseSteps = this.width / sampleStep;
+                        const dx = (xMax - xMin) / coarseSteps;
+                        let curr = rMin;
+
+                        while (curr < rMax - 1e-9) {
+                            let next = curr + dx;
+                            if (next > rMax) next = rMax;
+                            // Avoid tiny last step
+                            if (Math.abs(next - rMax) < 1e-9) next = rMax;
+
+                            const isDomainMin = domain && (Math.abs(curr - domain[0]) < 1e-9);
+                            let yStart = evalEdge(curr, isDomainMin, false);
+
+                            const isDomainMax = domain && (Math.abs(next - domain[1]) < 1e-9);
+                            let yEnd = evalEdge(next, false, isDomainMax);
+
+                            let yMid;
+                            const xMid = (curr + next) / 2;
+                            try { yMid = f(xMid); } catch (e) { }
+
+                            const v1 = isValid(curr, yStart);
+                            const v2 = isValid(next, yEnd);
+                            const vm = isValid(xMid, yMid);
+
+                            if (v1 || v2 || vm) {
+                                if (v1 && !started) {
+                                    const pSX = mapX(curr);
+                                    const pSY = safeMapY(yStart);
+                                    d += `M ${pSX} ${pSY}`;
+                                    started = true;
+                                }
+                                plotSegment(curr, yStart, next, yEnd, 0);
+                            } else {
+                                started = false;
+                            }
+                            curr = next;
+                        }
+                    }
+
+                    const path = document.createElementNS(ns, "path");
+                    path.setAttribute("d", d);
+                    path.setAttribute("fill", "none");
+                    path.setAttribute("stroke", color);
+                    path.setAttribute("stroke-width", width);
+                    if (dash) path.setAttribute("stroke-dasharray", dash);
+                    if (item.opacity !== undefined) path.setAttribute("opacity", item.opacity);
+                    this.dataGroup.appendChild(path);
                 } catch (e) {
                     this._addWarning(`Error rendering function '${item.fn}': ${e.message}`);
                 }
@@ -1374,29 +1469,40 @@ class MatephisPlot {
                 this.dataGroup.appendChild(path);
             }
 
-            // Vertical Line
             if (item.x !== undefined) {
-                const px = mapX(item.x);
-                if (px >= this.padding && px <= this.width - this.padding) {
-                    // Range support for vertical lines
-                    let yStart = this.padding;
-                    let yEnd = this.height - this.padding;
-                    
-                    if (item.range && Array.isArray(item.range)) {
-                        // Map range values to pixels
-                        const y1 = mapY(item.range[0]);
-                        const y2 = mapY(item.range[1]);
-                        const rawYMin = Math.min(y1, y2);
-                        const rawYMax = Math.max(y1, y2);
-                        
-                        yStart = Math.max(this.padding, rawYMin);
-                        yEnd = Math.min(this.height - this.padding, rawYMax);
-                    }
-                    
-                    if (yEnd > yStart) {
-                         const l = this._line(px, yStart, px, yEnd, color, width, dash, this.dataGroup);
-                         if (item.opacity !== undefined) l.setAttribute("opacity", item.opacity);
-                         if (!item.labelAt) labelPos = { x: px, y: yStart + 15 };
+                const valX = this._eval(item.x, "vertical line x");
+
+                if (!isNaN(valX)) {
+                    const px = mapX(valX);
+                    if (px >= this.padding && px <= this.width - this.padding) {
+                        // Range support for vertical lines
+                        let yStart = this.padding;
+                        let yEnd = this.height - this.padding;
+
+                        if (item.range && Array.isArray(item.range)) {
+                            // Map range values to pixels
+                            const r0 = this._eval(item.range[0], "vertical line range start");
+                            const r1 = this._eval(item.range[1], "vertical line range end");
+                            
+                            if (!isNaN(r0) && !isNaN(r1)) {
+                                const y1 = mapY(r0);
+                                const y2 = mapY(r1);
+                                // SVG Y coordinates: mapY(max) is smaller (top) than mapY(min) (bottom)
+                                // So usually mapY(range[1]) < mapY(range[0])
+                                // But let's just take min/max to be safe
+                                const rawYMin = Math.min(y1, y2);
+                                const rawYMax = Math.max(y1, y2);
+
+                                yStart = Math.max(this.padding, rawYMin);
+                                yEnd = Math.min(this.height - this.padding, rawYMax);
+                            }
+                        }
+
+                        if (yEnd > yStart) {
+                            const l = this._line(px, yStart, px, yEnd, color, width, dash, this.dataGroup);
+                            if (item.opacity !== undefined) l.setAttribute("opacity", item.opacity);
+                            if (!item.labelAt) labelPos = { x: px, y: yStart + 15 }; // Default label near top of segment
+                        }
                     }
                 }
             }
@@ -1404,18 +1510,46 @@ class MatephisPlot {
             // Points
             if (item.points) {
                 item.points.forEach(pt => {
-                    const px = mapX(pt[0]), py = mapY(pt[1]);
-                    if (px >= 0 && px <= this.width && py >= 0 && py <= this.height) {
-                        const c = document.createElementNS(ns, "circle");
-                        c.setAttribute("cx", px); c.setAttribute("cy", py);
-                        c.setAttribute("r", item.radius || 4);
-                        c.setAttribute("fill", item.fillColor || color);
-                        c.setAttribute("stroke", item.strokeColor || "none");
-                        c.setAttribute("stroke-width", item.strokeWidth || 0);
-                        if (item.opacity !== undefined) c.setAttribute("opacity", item.opacity);
-                        this.dataGroup.appendChild(c);
-                        // Use last point for label if no labelAt
-                        if (!item.labelAt) labelPos = { x: px, y: py };
+                    let valX = this._eval(pt[0], "point x");
+                    let valY = this._eval(pt[1], "point y");
+
+                    // Proceed only if we have valid numbers
+                    if (!isNaN(valX) && !isNaN(valY)) {
+                        const px = mapX(valX), py = mapY(valY);
+                        // Relaxed bounds check for points slightly off-screen or for drag behavior
+                        if (px >= -50 && px <= this.width + 50 && py >= -50 && py <= this.height + 50) {
+                            const c = document.createElementNS(ns, "circle");
+                            c.setAttribute("cx", px); c.setAttribute("cy", py);
+                            c.setAttribute("r", item.radius || 4);
+                            
+                            const fillColor = item.fillColor ? this._getColor(0, item.fillColor) : color;
+                            const strokeColor = item.strokeColor ? this._getColor(0, item.strokeColor) : "none";
+                            
+                            c.setAttribute("fill", fillColor);
+                            c.setAttribute("stroke", strokeColor);
+                            c.setAttribute("stroke-width", item.strokeWidth || 0);
+                            if (item.opacity !== undefined) c.setAttribute("opacity", item.opacity);
+                            this.dataGroup.appendChild(c);
+                            
+                            // Per-point Label [x, y, "Label"]
+                            if (pt[2] && typeof pt[2] === 'string') {
+                                const pLabel = pt[2];
+                                const lx = px + 8;
+                                const ly = py - 8;
+                                const fs = this._getConfigSize('labelSize');
+                                const lw = this.config.labelWeight || "normal";
+                                const ls = this.config.labelStyle || "normal";
+                                
+                                if (window.MathJax && pLabel.includes("$")) {
+                                     this._renderMathJax(pLabel, lx, ly, fs, "#333", "start", "alphabetic", this.labelGroup);
+                                } else {
+                                     this._text(lx, ly, pLabel, "start", "alphabetic", "#333", lw, ls, this.labelGroup, fs);
+                                }
+                            }
+
+                            // Use last point for label if no labelAt
+                            if (!item.labelAt) labelPos = { x: px, y: py };
+                        }
                     }
                 });
             }
@@ -1439,8 +1573,14 @@ class MatephisPlot {
 
                 const labelWeight = this.config.labelWeight || "normal";
                 const labelStyle = this.config.labelStyle || "normal";
-                const displayLabel = item.label.replace(/\*/g, '·');
-                this._text(lx, ly, displayLabel, anchor, "bottom", color, labelWeight, labelStyle, this.labelGroup, this._getConfigSize('labelSize'));
+                const displayLabel = item.label;
+
+                if (window.MathJax && displayLabel.includes("$")) {
+                     this._renderMathJax(displayLabel, lx, ly, this._getConfigSize('labelSize'), color, anchor, "bottom", this.labelGroup);
+                } else {
+                     const cleanLabel = displayLabel.replace(/\*/g, '·');
+                     this._text(lx, ly, cleanLabel, anchor, "bottom", color, labelWeight, labelStyle, this.labelGroup, this._getConfigSize('labelSize'));
+                }
             }
         });
 
@@ -1454,10 +1594,12 @@ class MatephisPlot {
         // Default Top-Right
         let x = this.width - this.padding - 10;
         let y = this.padding + 10;
-        
+
         const pos = this.config.legendPosition || 'top-right';
+
+        // Width logic remains... (simplified for this tool call, keeping existing width logic logic implied or using simple replacement)
+        // Wait, I need to replace the whole function to safely change the flow.
         
-        // Width Calc (Pre-calc needed for X positioning)
         let w;
         if (this.config.legendWidth) {
             w = this.config.legendWidth;
@@ -1465,44 +1607,73 @@ class MatephisPlot {
             let maxLen = 0;
             const fs = this._getConfigSize('legendSize');
             items.forEach(it => maxLen = Math.max(maxLen, it.label.length));
-            w = 30 + (maxLen * (fs * 0.6)) + 20;
-            if (w < 120) w = 120;
+            // Tighter packing: 0.5 char width estimate, less padding
+            w = 30 + (maxLen * (fs * 0.5)) + 15;
+            if (w < 50) w = 50;
         }
 
         const fs = this._getConfigSize('legendSize');
-        const h = items.length * (fs * 1.5) + 10;
-
-        if (pos === 'top-left') {
-            x = this.padding + 10 + w; // rect is drawn x-w, so x must be right edge
-        } else if (pos === 'bottom-right') {
-            x = this.width - this.padding - 10;
-            y = this.height - this.padding - 10 - h;
-        } else if (pos === 'bottom-left') {
-            x = this.padding + 10 + w;
-            y = this.height - this.padding - 10 - h;
-        }
-        // top-right is default (x already set)
         
-        const labelWeight = this.config.labelWeight || "normal";
-        const labelStyle = this.config.labelStyle || "normal";
-
-        // bg
+        // bg (Height will be set later)
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rect.setAttribute("x", x - w);
-        rect.setAttribute("y", y);
         rect.setAttribute("width", w);
-        rect.setAttribute("height", h);
         rect.setAttribute("fill", "white");
         rect.setAttribute("fill-opacity", "0.9");
         rect.setAttribute("stroke", "#eee");
-        // rect.setAttribute("rx", 4); // Square corners requested
         this.legendGroup.appendChild(rect);
 
+        // Calculate Position Start
+        // For bottom-aligned, we need to know height beforehand OR shift later.
+        // Shifting later is hard with SVG.
+        // Let's do a 2-pass approach or just use flow if top-aligned.
+        // If bottom-aligned, we might guessing or need to measure.
+        // For now, let's assume top-aligned flow logic, and if bottom-aligned, we might be slightly off or need Pre-calc.
+        // Let's stick to Pre-calc loop for height.
+        
+        let totalH = 10; // Top padding
+        const RowH = fs * 1.5;
+        
+        // Pass 1: Calculate Heights
+        const rowHeights = items.map(item => {
+             if (window.MathJax && item.label.includes("$")) {
+                 // Estimaate
+                 // If normal text is 1.5 * fs, MathJax fractions might be 2.5 * fs?
+                 // Without rendering, we guess.
+                 // Better: Render them, measure? No, too slow/complex DOM thrashing.
+                 // Heuristic: if it hasfrac, increase height
+                 if (item.label.includes("\\frac")) return fs * 2.5;
+                 if (item.label.includes("\\sum") || item.label.includes("\\int")) return fs * 2.2;
+                 return fs * 1.5;
+             }
+             return fs * 1.5;
+        });
+        
+        totalH = 10 + rowHeights.reduce((a, b) => a + b, 0) + 10; // +10 bottom padding
+
+        // X/Y calculations based on totalH
+        if (pos === 'top-left') {
+            x = this.padding + 10 + w;
+        } else if (pos === 'bottom-right') {
+            x = this.width - this.padding - 10;
+            y = this.height - this.padding - 10 - totalH;
+        } else if (pos === 'bottom-left') {
+            x = this.padding + 10 + w;
+            y = this.height - this.padding - 10 - totalH;
+        }
+
+        rect.setAttribute("x", x - w);
+        rect.setAttribute("y", y);
+        rect.setAttribute("height", totalH);
+
+        let currentY = y + 10; // Start Y
+
         items.forEach((item, i) => {
-            const ly = y + 15 + i * (fs * 1.5);
+            const h = rowHeights[i];
+            const ly = currentY + (h / 2); // Center of row
+            
             const lx = x - w + 10;
             // Symbol
-            const symbolY = ly + (fs / 3); // Align with text baseline shift
+            const symbolY = ly; 
             if (item.type === 'point') {
                 const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
                 c.setAttribute("cx", lx + 5); c.setAttribute("cy", symbolY); c.setAttribute("r", 4);
@@ -1512,27 +1683,115 @@ class MatephisPlot {
                 this._line(lx, symbolY, lx + 15, symbolY, item.color, 2, item.dash, this.legendGroup);
             }
 
+            // Use baseline alignment for better vertical centering
+            // Visual middle of text is approx 0.35em above baseline
+            const textBaseline = ly + (fs * 0.35);
+
             // Text or MathJax
             if (window.MathJax && item.label.includes("$")) {
-                const tex = item.label.replace(/\$/g, "");
-                const svgNode = MathJax.tex2svg(tex).querySelector("svg");
-                if (svgNode) {
-                    // Inject vector math
-                    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                    g.setAttribute("transform", `translate(${lx + 25}, ${ly - 5}) scale(0.015)`); // MathJax scale is usually huge
-                    g.setAttribute("fill", "#333"); // Force color
-                    // We need to copy paths deeply
-                    g.innerHTML = svgNode.innerHTML;
-                    // Note: MathJax SVG uses <use> refs, needs <defs>. Complicated.
-                    // Simpler fallback for now: just try innerHTML or text fallback if complicated
-                    // Actually, standard mathjax output relies on defs. We might break it if we don't copy defs.
-                    // Let's stick to text fallback for reliability in this fast iter.
-                    this._text(lx + 25, ly + (fs / 3), item.label.replace(/\*/g, '·'), "start", "middle", "#333", labelWeight, labelStyle, this.legendGroup, fs);
-                }
+                this._renderMathJax(item.label, lx + 25, textBaseline - 1, fs, "#333", "start", "alphabetic", this.legendGroup);
             } else {
-                this._text(lx + 20, ly + (fs / 3), item.label.replace(/\*/g, '·'), "start", "middle", "#333", labelWeight, labelStyle, this.legendGroup, fs);
+                this._text(lx + 20, textBaseline, item.label.replace(/\*/g, '·'), "start", "alphabetic", "#333", this.config.labelWeight || "normal", this.config.labelStyle || "normal", this.legendGroup, fs);
             }
+
+            
+            currentY += h;
         });
+    }
+
+    /**
+     * Renders MathJax into the SVG.
+     * @private
+     */
+    _renderMathJax(text, x, y, baseSize, color, anchor, baseline, parent) {
+        try {
+            const tex = text.replace(/^\$|\$$/g, '').replace(/\\$/g, '');
+            const mjNode = MathJax.tex2svg(tex);
+            const mjSvg = mjNode.querySelector("svg");
+            
+            if (mjSvg) {
+                const svgNode = mjSvg.cloneNode(true);
+                svgNode.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+                svgNode.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+                
+                // Parse dimensions (usually in 'ex')
+                const wAttr = svgNode.getAttribute("width") || "1ex";
+                const hAttr = svgNode.getAttribute("height") || "1ex";
+                const valign = svgNode.style.verticalAlign || "0ex"; // e.g. -0.25ex
+
+                // Conversion factor: assume 1ex in MathJax ~= 0.5 * baseSize (in pixels)
+                const ex2px = baseSize * 0.5; 
+                
+                const wIdx = parseFloat(wAttr) * ex2px;
+                const hIdx = parseFloat(hAttr) * ex2px;
+                const vShift = parseFloat(valign) * ex2px;
+
+                svgNode.setAttribute("width", wIdx + "px");
+                svgNode.setAttribute("height", hIdx + "px");
+                
+                // Alignment Logic
+                let finalX = x;
+                if (anchor === 'end') finalX = x - wIdx;
+                else if (anchor === 'middle') finalX = x - wIdx / 2;
+                
+                let finalY = y;
+                // Baseline vs Middle
+                if (baseline === 'middle') {
+                    // Center vertically around y (bounding box center)
+                    finalY = y - (hIdx / 2); 
+                } else {
+                    // Baseline alignment
+                    // y is the target baseline.
+                    // MathJax SVG top = Baseline - (Height - Depth)
+                    // Depth = -vShift (vShift is usually negative in MathJax)
+                    // Top = y - hIdx - vShift
+                    finalY = y - hIdx - vShift;
+                }
+
+                svgNode.setAttribute("x", finalX);
+                svgNode.setAttribute("y", finalY);
+                // Ensure self-containment: Check for missing defs (Global Cache Issue)
+                // MathJax often uses a global cache. Use references might point to IDs not in this SVG.
+                // We must find them in the document and copy them here.
+                const uses = svgNode.querySelectorAll("use");
+                let defs = svgNode.querySelector("defs");
+                if (!defs) {
+                    defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+                    svgNode.prepend(defs);
+                }
+
+                uses.forEach(use => {
+                    const href = use.getAttribute("xlink:href") || use.getAttribute("href");
+                    if (href && href.startsWith("#")) {
+                        const id = href.substring(1);
+                        // Check if it exists inside this SVG
+                        if (!svgNode.querySelector(`[id="${id}"]`)) {
+                            // Valid ID?
+                            // Try to find in global document
+                            const globalDef = document.getElementById(id);
+                            if (globalDef) {
+                                // Clone and append to local defs
+                                const clone = globalDef.cloneNode(true);
+                                defs.appendChild(clone);
+                            }
+                        }
+                    }
+                });
+
+                svgNode.setAttribute("fill", color);
+                svgNode.style.color = color; // For currentColor
+                
+                // Ensure text color is applied to paths if they use currentColor
+                svgNode.querySelectorAll('path').forEach(p => p.setAttribute('fill', color));
+
+                parent.appendChild(svgNode);
+            } else {
+                 this._text(x, y, text, anchor, baseline, color, "normal", "normal", parent, baseSize);
+            }
+        } catch (e) {
+            console.warn("MathJax Render Error", e);
+            this._text(x, y, text, anchor, baseline, color, "normal", "normal", parent, baseSize);
+        }
     }
 
     /**
@@ -1574,23 +1833,20 @@ class MatephisPlot {
         const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
         t.setAttribute("x", x);
         t.setAttribute("y", y);
+        t.setAttribute("class", "matephis-plot-text");
         t.setAttribute("text-anchor", anchor);
         t.setAttribute("dominant-baseline", baseline);
         t.setAttribute("fill", color);
         const fSize = (size !== null) ? size + "px" : "18px";
         t.setAttribute("font-size", fSize);
         t.setAttribute("font-weight", weight);
-        if (style) t.setAttribute("font-style", style);
-        if (style) t.setAttribute("font-style", style);
+        t.setAttribute("font-style", style);
         t.textContent = str;
         if (outline) {
             t.style.paintOrder = "stroke";
             t.style.stroke = "#fff";
             t.style.strokeWidth = "2.5px";
         }
-        if (weight === 'bold' || weight === '700') t.classList.add('bold');
-        if (style === 'italic') t.classList.add('italic');
-        
         parent.appendChild(t);
     }
 
@@ -1603,19 +1859,20 @@ class MatephisPlot {
             "width", "height", "aspectRatio", "cssWidth", "fullWidth", "align",
             "marginLeft", "marginRight", "border", "sliderBorder",
             "xlim", "ylim", "interactive", "theme", "legend", "legendWidth", "legendPosition",
-            "padding", "grid", "gridOpacity", "axisArrows", "axisLabels",
+            "padding", "marginBottom", "grid", "gridOpacity", "axisArrows", "axisLabels",
             "xStep", "yStep", "xStepSecondary", "yStepSecondary", "showSecondaryGrid", "showGrid",
             "xNumberStep", "yNumberStep", "showXNumbers", "showYNumbers",
             "showXTicks", "showYTicks", "secondaryGridOpacity",
             "sampleStep", "fontSize", "renderOrder", "params", "showSliders", "data", "labelWeight",
             "numberSize", "labelSize", "legendSize",
-            "axisLabelWeight", "axisLabelStyle", "labelStyle", "axisLabelOffset"
+            "axisLabelWeight", "axisLabelStyle", "labelStyle", "axisLabelOffset",
         ];
 
         const VALID_DATA_KEYS = [
             "fn", "implicit", "points", "x", "color", "opacity", "width", "strokeWidth",
             "dash", "label", "labelAt", "labelOffset", "labelAnchor",
-            "domain", "radius", "fillColor", "strokeColor", "range"
+            "domain", "radius", "fillColor", "strokeColor",
+            "range"
         ];
 
         // 1. Root Keys
@@ -1630,12 +1887,12 @@ class MatephisPlot {
             this.config.data.forEach((item, i) => {
                 for (let key in item) {
                     if (!VALID_DATA_KEYS.includes(key)) {
-                        this._addWarning(`Unknown data option in item ${i+1}: '${key}'`);
+                        this._addWarning(`Unknown data option in item ${i + 1}: '${key}'`);
                     }
                 }
                 // Check Essentials
                 if (!item.fn && !item.implicit && !item.points && item.x === undefined) {
-                    this._addWarning(`Data item ${i+1} has no content (missing 'fn', 'points', 'implicit', or 'x').`);
+                    this._addWarning(`Data item ${i + 1} has no content (missing 'fn', 'points', 'implicit', or 'x').`);
                 }
             });
         }
@@ -1672,7 +1929,7 @@ class MatephisPlot {
         const ul = document.createElement("ul");
         ul.style.margin = "5px 0 0 20px";
         ul.style.padding = "0";
-        
+
         this.warnings.forEach(w => {
             const li = document.createElement("li");
             li.innerText = w;
@@ -1692,28 +1949,58 @@ class MatephisPlot {
      * @private
      */
     _openLightbox() {
-        const serializer = new XMLSerializer();
-        let source = serializer.serializeToString(this.svg);
-        
-        if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
-            source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
-        }
-        
-        // Scale up for lightbox while maintaining aspect ratio
-        const maxDim = 1200;
-        const scale = Math.min(maxDim / this.width, maxDim / this.height);
-        const newW = Math.round(this.width * scale);
-        const newH = Math.round(this.height * scale);
-
-        source = source.replace(/width="[^"]*"/, `width="${newW}"`);
-        source = source.replace(/height="[^"]*"/, `height="${newH}"`);
-
-        const url = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(source)));
         const lb = document.getElementById('lightbox');
         const img = document.getElementById('lightbox-img');
-        if (lb && img) {
+        const svgContainer = document.getElementById('lightbox-svg');
+        const caption = document.getElementById('lightbox-caption');
+
+        if (lb && svgContainer) {
+            // Feature: Inline SVG Mode (Fixes Fonts & MathJax natively)
+            // Instead of serializing to image, we clone the DOM node.
+            
+            // 1. Prepare Container
+            svgContainer.innerHTML = "";
+            if (img) img.style.display = "none";
+            svgContainer.style.display = "flex"; // Flex to align center
             lb.style.display = "flex";
-            img.src = url;
+            if (caption) caption.innerHTML = ""; // Or explicit caption if needed
+
+            // 2. Clone SVG
+            const clone = this.svg.cloneNode(true);
+            
+            // 3. Responsive Sizing
+            // 3. Responsive Sizing with Perspective
+            // target: 1200px, but constrained by viewport (90% width, 85vh height)
+            const maxWidth = Math.min(1200, window.innerWidth * 0.9);
+            const maxHeight = window.innerHeight * 0.85;
+            
+            // Calculate scale to fit within BOTH constraints
+            const scaleW = maxWidth / this.width;
+            const scaleH = maxHeight / this.height;
+            const scale = Math.min(scaleW, scaleH); // Fit start (contain)
+            
+            const finalW = Math.round(this.width * scale);
+            const finalH = Math.round(this.height * scale);
+            
+            // Apply dimensions to the CONTAINER
+            // Since we calculated 'fit', setting explicit px ensures container matches SVG exactly
+            svgContainer.style.width = `${finalW}px`;
+            svgContainer.style.height = `${finalH}px`;
+            
+            // The SVG fills the container
+            clone.setAttribute("width", "100%");
+            clone.setAttribute("height", "100%");
+            // Ensure no conflicting inline styles
+            clone.style.width = "100%";
+            clone.style.height = "100%";
+            
+            // Ensure ViewBox is present (critical for scaling)
+            if (!clone.hasAttribute("viewBox")) {
+               clone.setAttribute("viewBox", `0 0 ${this.width} ${this.height}`);
+            }
+            
+            // 4. Append
+            svgContainer.appendChild(clone);
         }
     }
 }

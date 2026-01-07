@@ -98,7 +98,7 @@ function initSidebarResizer() {
         const newHeight = startHeight + delta;
         
         // Constraints
-        const maxH = window.innerHeight - 150; // Keep some top space
+        const maxH = window.innerHeight - 300; // Keep some top space
         if (newHeight > 48 && newHeight < maxH) {
             panel.style.height = newHeight + "px";
         }
@@ -333,7 +333,8 @@ function bindGlobalEvents() {
     };
     
     document.getElementById("copy-json-btn").onclick = () => {
-        navigator.clipboard.writeText(JSON.stringify(cleanStateForLib(appState), null, 2));
+        // Use the value from the editor to preserve custom formatting
+        navigator.clipboard.writeText(document.getElementById("json-editor").value);
     };
     
     document.getElementById("update-from-json-btn").onclick = () => {
