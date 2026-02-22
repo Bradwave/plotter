@@ -60,7 +60,7 @@
 }
 
 .matephis-plot-svg.static {
-  cursor: zoom-in;
+  cursor: default;
 }
 
 /* Error */
@@ -158,7 +158,7 @@
   border: none;
   border-radius: 50%;
   box-shadow: 0 0 0 6px rgba(176, 26, 0, 0.2);
-  cursor: default;
+  cursor: pointer;
   transition: all 0.1s ease-in-out;
   margin-top: 0;
 }
@@ -242,10 +242,10 @@
 */
 
 .matephis-plot-toolbar {
-  position: fixed;
+  position: absolute;
   top: auto;
-  bottom: 30px;
-  left: calc(50% + 225px); /* Center of the canvas area */
+  bottom: -55px; /* Sit farther outside the plot container */
+  left: 50%; /* Center of its relative container */
   right: auto;
   transform: translateX(-50%);
   
@@ -254,7 +254,7 @@
   
   background: rgba(255, 255, 255, 0.9);
   padding: 6px 12px;
-  border-radius: 99px;
+  border-radius: 8px;
   border: 1px solid rgba(0,0,0,0.1);
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   pointer-events: auto;
@@ -274,18 +274,27 @@
   user-select: none;
 }
 
-.matephis-plot-btn:hover {
-  background: #e0e0e0;
-}
-
 .matephis-plot-btn:active {
   background: #d0d0d0;
+}
+
+.matephis-plot-btn.active {
+  background: var(--accent, #B01A00);
+}
+
+.matephis-plot-btn.active img {
+  opacity: 1;
+  filter: brightness(0) invert(1); /* Make white */
 }
 
 .matephis-plot-btn img {
   opacity: 0.6;
   pointer-events: none;
   /* Let clicks pass to button */
+}
+
+.matephis-plot-btn:not(.active):hover {
+  background: #e0e0e0;
 }
 
 .matephis-plot-btn:hover img {

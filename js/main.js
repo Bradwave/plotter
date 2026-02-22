@@ -34,6 +34,18 @@ const DEFAULT_STATE = {
     legend: false,
     legendPosition: 'top-right',
     
+    // Tools & Analysis
+    pointSelection: false,
+    slopeSelection: false,
+    tangentSelection: false,
+    showDerivative: false,
+    addDerivativePlot: false,
+    traceDerivative: false,
+    showDerivativeFunction: true,
+    showToolbar: true,
+    showDerivativeToolbar: false,
+    slopeLabel: "m",
+    
     // Params
     params: {
         "a": { val: 1, min: -5, max: 5, step: 0.1 },
@@ -45,12 +57,17 @@ const DEFAULT_STATE = {
 
 let appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 
+
+let isInitialized = false;
+
 document.addEventListener("DOMContentLoaded", () => {
     init();
 });
 
+
 function init() {
     loadState();
+    isInitialized = true;
     bindGlobalEvents();
     syncUIToState();
     setupCollapsibles();
@@ -142,7 +159,9 @@ function loadState() {
     }
 }
 
+
 function saveState() {
+    if (!isInitialized) return;
     try {
         localStorage.setItem("matephis-plotter-state", JSON.stringify(appState));
     } catch (e) {
@@ -158,7 +177,7 @@ function updatePlot() {
         container.classList.add("plot-auto-size");
         container.style.width = "";
         container.style.height = "";
-        container.style.aspectRatio = "1/1";
+        container.style.aspectRatio = "auto";
     } else {
         container.classList.remove("plot-auto-size");
         // Apply manual size if specified, allowing container to grow/shrink
@@ -224,7 +243,6 @@ function cleanStateForLib(state) {
     if (config.theme === 'default') delete config.theme;
     
     if (!config.legend) delete config.legend;
-    if (!config.legendSize) delete config.legendSize;
     if (!config.legendWidth) delete config.legendWidth;
     if (config.legendPosition === 'top-right') delete config.legendPosition; 
     
@@ -248,6 +266,18 @@ function cleanStateForLib(state) {
     // Default showSliders is false/undefined in library? 
     // If we want to omit it completely:
     delete config.showSliders; 
+
+    // Tools & Analysis
+    if (config.pointSelection === false) delete config.pointSelection;
+    if (config.slopeSelection === false) delete config.slopeSelection;
+    if (config.tangentSelection === false) delete config.tangentSelection;
+    if (config.showDerivative === false) delete config.showDerivative;
+    if (config.addDerivativePlot === false) delete config.addDerivativePlot;
+    if (config.traceDerivative === false) delete config.traceDerivative;
+    if (config.showDerivativeFunction === true) delete config.showDerivativeFunction; // true by default in library
+    if (config.showToolbar === false) config.showToolbar = false; // By default we assume it is true in the library
+    if (config.showDerivativeToolbar === false) delete config.showDerivativeToolbar; 
+    if (!config.slopeLabel || config.slopeLabel === "m") delete config.slopeLabel;
     
     if (config.data) {
         config.data.forEach(item => {
@@ -281,10 +311,8 @@ function bindGlobalEvents() {
     bindInput("g-ystep", "yStep", true);
     
     document.getElementById("g-legend").onchange = (e) => { appState.legend = e.target.checked; refresh(); };
-    bindInput("g-legendsize", "legendSize", true);
-    // document.getElementById("g-legendwidth") removed from UI? No, check if still there.
-    // I simplified Index.html but kept ids? No, let's check bound ids in HTML.
-    // If IDs are missing, bindInput fails gracefully.
+    bindInput("g-legendsize", "legendWidth", true);
+    // Checking if legacy g-legendwidth input still exists and mapping it
     bindInput("g-legendwidth", "legendWidth", true);
     document.getElementById("g-legendpos").onchange = (e) => { appState.legendPosition = e.target.value; refresh(); };
     
@@ -308,6 +336,17 @@ function bindGlobalEvents() {
     
     document.getElementById("g-datalabel-bold").onchange = (e) => { appState.labelWeight = e.target.checked ? "bold" : "normal"; refresh(); };
     document.getElementById("g-datalabel-italic").onchange = (e) => { appState.labelStyle = e.target.checked ? "italic" : "normal"; refresh(); };
+
+    document.getElementById("g-tool-point").onchange = (e) => { appState.pointSelection = e.target.checked; refresh(); };
+    document.getElementById("g-tool-slope").onchange = (e) => { appState.slopeSelection = e.target.checked; refresh(); };
+    document.getElementById("g-tool-tangent").onchange = (e) => { appState.tangentSelection = e.target.checked; refresh(); };
+    document.getElementById("g-derive-overlay").onchange = (e) => { appState.showDerivative = e.target.checked; refresh(); };
+    document.getElementById("g-derive-plot").onchange = (e) => { appState.addDerivativePlot = e.target.checked; refresh(); };
+    document.getElementById("g-derive-trace").onchange = (e) => { appState.traceDerivative = e.target.checked; refresh(); };
+    document.getElementById("g-derive-function").onchange = (e) => { appState.showDerivativeFunction = e.target.checked; refresh(); };
+    document.getElementById("g-derive-toolbar").onchange = (e) => { appState.showDerivativeToolbar = e.target.checked; refresh(); };
+    document.getElementById("g-show-toolbar").onchange = (e) => { appState.showToolbar = e.target.checked; refresh(); };
+    document.getElementById("g-slope-label").oninput = (e) => { appState.slopeLabel = e.target.value; refresh(); };
 
     document.getElementById("g-interactive").onchange = (e) => { appState.interactive = e.target.checked; refresh(); };
 
@@ -412,7 +451,7 @@ function syncUIToState(fromJSON = false) {
     document.getElementById("g-ystep").value = appState.yStep || "";
     
     document.getElementById("g-legend").checked = !!appState.legend;
-    document.getElementById("g-legendsize").value = appState.legendSize || "";
+    document.getElementById("g-legendsize").value = appState.legendWidth || "";
     // Check if g-legendwidth exists
     const lw = document.getElementById("g-legendwidth"); if(lw) lw.value = appState.legendWidth || "";
     document.getElementById("g-legendpos").value = appState.legendPosition || "top-right";
@@ -436,6 +475,17 @@ function syncUIToState(fromJSON = false) {
     document.getElementById("g-axis-italic").checked = appState.axisLabelStyle === "italic";
     document.getElementById("g-datalabel-bold").checked = appState.labelWeight === "bold";
     document.getElementById("g-datalabel-italic").checked = appState.labelStyle === "italic";
+
+    document.getElementById("g-tool-point").checked = appState.pointSelection === true;
+    document.getElementById("g-tool-slope").checked = appState.slopeSelection === true;
+    document.getElementById("g-tool-tangent").checked = appState.tangentSelection === true;
+    document.getElementById("g-derive-overlay").checked = appState.showDerivative === true;
+    document.getElementById("g-derive-plot").checked = appState.addDerivativePlot === true;
+    document.getElementById("g-derive-trace").checked = appState.traceDerivative === true;
+    document.getElementById("g-derive-function").checked = appState.showDerivativeFunction !== false;
+    document.getElementById("g-derive-toolbar").checked = appState.showDerivativeToolbar === true;
+    document.getElementById("g-show-toolbar").checked = appState.showToolbar !== false;
+    document.getElementById("g-slope-label").value = appState.slopeLabel || "m";
 
     renderParams();
     renderItems();

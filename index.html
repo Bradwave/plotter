@@ -14,6 +14,30 @@
     <link rel="stylesheet" href="css/fonts.css">
     <link rel="stylesheet" href="css/matephis-plot.css">
     <link rel="stylesheet" href="css/styles.css?v=1.2">
+    
+    <!-- MathJax -->
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      },
+      svg: {
+        fontCache: 'global'
+      },
+      startup: {
+        pageReady: () => {
+          return MathJax.startup.defaultPageReady().then(() => {
+            console.log('MathJax initial typesetting complete');
+            if (typeof updatePlot === 'function') updatePlot();
+          });
+        }
+      }
+    };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+
     <!-- Matephis Plot Library -->
     <script src="js/matephis-plot.js?v=1.2"></script>
 </head>
@@ -90,6 +114,46 @@
                                 <option value="coastal">Coastal</option>
                                 <option value="seaside">Seaside</option>
                             </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tools -->
+                <div class="section-header-collapsible" data-target="tools-settings">
+                    <div class="section-title">Tools & Analysis</div>
+                    <span class="material-symbols-outlined dropdown-icon">expand_more</span>
+                </div>
+                <div id="tools-settings" class="collapsible-content">
+                    <div class="component-row">
+                        <div class="control-row">
+                            <span class="control-label" style="min-width: 60px;">Select</span>
+                            <div class="inputs-compact">
+                                <label style="font-size:0.9em"><input type="checkbox" id="g-tool-point"> Point</label>
+                                <label style="font-size:0.9em"><input type="checkbox" id="g-tool-slope"> Slope</label>
+                                <label style="font-size:0.9em"><input type="checkbox" id="g-tool-tangent"> Tangent</label>
+                                <label style="font-size:0.9em"><input type="checkbox" id="g-show-toolbar"> Toolbar</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component-row">
+                        <div class="control-row">
+                            <span class="control-label" style="min-width: 60px;">Calculus</span>
+                            <div class="inputs-compact">
+                                <label style="font-size:0.9em" title="Overlay derivative function"><input type="checkbox" id="g-derive-overlay"> Overlay</label>
+                                <label style="font-size:0.9em" title="Add secondary derivative plot"><input type="checkbox" id="g-derive-plot"> Show Plot</label>
+                            </div>
+                        </div>
+                        <div class="control-row" style="margin-top: 4px;">
+                            <span class="control-label" style="min-width: 60px;">Deriv. Plot</span>
+                            <div class="inputs-compact">
+                                <label style="font-size:0.9em" title="Trace derivative from tangent"><input type="checkbox" id="g-derive-trace"> Trace</label>
+                                <label style="font-size:0.9em" title="Show derivative function curve in secondary plot"><input type="checkbox" id="g-derive-function"> Function</label>
+                                <label style="font-size:0.9em" title="Show toolbar for secondary plot"><input type="checkbox" id="g-derive-toolbar"> Toolbar</label>
+                            </div>
+                        </div>
+                        <div class="control-row" style="margin-top: 8px;">
+                            <span class="control-label" title="Name for slope variable (e.g. m, f'(x))">Slope Label</span>
+                            <input type="text" id="g-slope-label" class="input-sm" value="m" placeholder="m">
                         </div>
                     </div>
                 </div>
@@ -182,7 +246,7 @@
                             </select>
                         </div>
                         <div class="control-row" style="margin-top:8px;">
-                            <span class="control-label">Size</span>
+                            <span class="control-label">Width</span>
                             <input type="number" id="g-legendsize" placeholder="Auto" style="width:70px">
                         </div>
                     </div>
